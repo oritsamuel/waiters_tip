@@ -1,65 +1,164 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type Waiter = {
+  photo?: string;
+  fullName?: string;
+  rating?: number;
+  phoneNumber?: string;
+  company?: {
+    logo?: string;
+    name?: string;
+  };
+
+};
+
+export default function HomePage() {
+  const router = useRouter();
+  const [waiters, setWaiters] = useState<Waiter[]>([]);
+
+  const companyId = "50301";
+
+  const waiterPhones = [
+    "0913853049",
+    "0926836779",
+    "0911822542",
+    "0986007652",
+    "0910148023",
+    "0921327249",
+    "0989604169",
+    "0943499973",
+    "0921235386",
+    "0919792769",
+    "0942231979",
+    "0921351827",
+    "0928660620",
+    "0941111348"
+  ];
+
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const fetchWaiters = async () => {
+      try {
+        const results = await Promise.all(
+          waiterPhones.map(async (phone) => {
+            const res = await fetch(
+              `https://v7-hulubeje.cnetcommerce.com/api/waiter/get?phoneNumber=${phone}&companyId=${companyId}`,
+              {
+                headers: {
+                  "x-api-key": "5D5EAFF4-D29A-485B-BDB9-785EF86FFFAE",
+                  Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTM5OTc3ODg2IiwianRpIjoiQzMyMEUwNTM0NDdFNjVGMDZBNkJEMzk2NzBCMEI1MDYwMDE0NTg1MDQwODVENjQxRkI4NTQ5ODhDNDU1NjREMjUxOTVGN0EyMEQ0OTJENDc5RjA3NEYxNUVDREI2NjlDNzgzQTczQjE1ODlBNTY0QjQ4OEY3NjMyNjA0RjRDMkEiLCJleHAiOjE3ODQyNzM4NzAsImlzcyI6Ikh1bHViZWplIiwiYXVkIjoiSHVsdWJlamUifQ.TAON94Z1F6dpO-t3wm0gTfrjwUD5M0Ae3inlQhWSTlk"
+                  ,
+                },
+              }
+            );
+
+            //  const result = await res.json();
+            //add in
+            const text = await res.text();
+
+            console.log(phone, res.status, text);
+
+            if (!text) {
+              console.error("Empty response for:", phone);
+              return null;
+            }
+
+            const result = JSON.parse(text);
+            //end
+
+            if (result.isSuccessful) {
+              return result.data;
+            }
+
+            return null;
+          })
+        );
+
+
+        // remove failed ones
+        const validWaiters = results
+          .filter(Boolean)
+          .sort((a: any, b: any) =>
+            (a.fullName || "").localeCompare(b.fullName || "")
+          );
+        setWaiters(validWaiters);
+        // setWaiters(results.filter(Boolean));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchWaiters();
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="flex justify-center items-start min-h-screen bg-gray-100 py-10">
+      <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center space-y-6 relative">
+
+        {/* Card with logo half in/out */}
+        <div className="bg-white border-1 border-yellow-300 rounded-xl shadow-lg pt-14 pb-6 px-4 relative text-center">
+
+          {/* Logo half inside/outside */}
+          <img
+
+            src="goFresh.jpg"
+            className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-2 border-yellow-300"
+          />
+          <h1 className="text-xl font-bold text-black text-center mb-6">
+            Our Waiters
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          <input
+            type="text"
+            placeholder="Search waiter..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full p-2 border rounded-lg mb-4 text-black"
+          />
+
+
+          <div className="space-y-4">
+            {/* {waiters.map((w) => ( */}
+            {waiters
+              .filter((w: any) =>
+                (w.fullName || "")
+                  .toLowerCase()
+                  .includes(search.toLowerCase())
+              )
+              .sort((a: any, b: any) =>
+                (a.fullName || "").localeCompare(b.fullName || "")
+              )
+              .map((w) => (
+                <div
+                  key={w.phoneNumber}
+                  onClick={() => {
+                    const data = btoa(JSON.stringify({ phone: w.phoneNumber, companyId }));
+                    router.push(`/tip?data=${data}`);
+                  }}
+                  className="bg-white rounded-xl shadow p-4 flex items-center gap-4 cursor-pointer hover:shadow-lg"
+                >
+                  <img
+                    src={w.photo || "/waiter.png"}
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
+
+                  <div className="flex-1 text-left">
+                    <h2 className="text-black font-semibold">
+                      {w.fullName}
+                    </h2>
+
+                    <p className="text-sm text-gray-500">
+                      ⭐ {w.rating || 0}
+                    </p>
+                  </div>
+
+                  <div className="text-gray-400 text-xl">→</div>
+                </div>
+              ))}
+          </div></div></div>
+    </main>
   );
 }

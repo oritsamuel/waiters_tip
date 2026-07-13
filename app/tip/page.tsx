@@ -103,7 +103,7 @@ function PageContent() {
 
                     {/* Logo half inside/outside */}
                     <img
-                        src={"/goFresh.jpg"}
+                        src={"/waiter.png"}
                         className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-4 border-white"
                     />
 

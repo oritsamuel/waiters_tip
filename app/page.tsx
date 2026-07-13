@@ -22,30 +22,7 @@ export default function HomePage() {
   const companyId = "50301";
 
   const waiterPhones = [
-    "0988873030",
-    "0903648687",
-    "0900184697",
-    "0926619046",
-    "0900476240",
-    "0934592123",
-    "0983108118",
-    "0912321618",
-    "0935344867",
-    "0922100259",
-    "0945438849",
-    "0965473846",
-    "0985344309",
-    "0977601956",
-    "0923815148",
-    "0927732041",
-    "0951516453",
-    "0978628505",
-    "0953844075",
-    "0939825010",
-    "0949915373",
-    "0946714543",
-    "0925426708"
-
+    "0911822542",
   ];
 
   const [search, setSearch] = useState("");
@@ -115,7 +92,7 @@ export default function HomePage() {
           {/* Logo half inside/outside */}
           <img
 
-            src="goFresh.jpg"
+            src="waiter.png"
             className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-2 border-yellow-300"
           />
           <h1 className="text-xl font-bold text-black text-center mb-6">

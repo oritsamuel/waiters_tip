@@ -1,0 +1,78 @@
+{
+  "50301_1": {
+    "waiters": [
+      {
+        "phone": "0911822542"
+      },
+      {
+        "phone": "0967"
+      }
+    ],
+    "transactions": []
+  },
+  "50301_44496": {
+    "waiters": [
+      {
+        "phone": "0902150061"
+      },
+      {
+        "phone": "0901170889"
+      },
+      {
+        "phone": "0951493848"
+      },
+      {
+        "phone": "0973376234"
+      }
+    ],
+    "transactions": [
+      {
+        "waiterPhone": "0901170889",
+        "tipAmount": 1,
+        "rating": 5,
+        "comment": "Great service!",
+        "id": "swyojs2",
+        "timestamp": "2026-08-13T08:41:46.301Z"
+      },
+      {
+        "waiterPhone": "0901170889",
+        "payerPhone": "0911822542",
+        "tipAmount": 1,
+        "rating": 4,
+        "comment": "Much appreciated!  thnk you. appreciate it\n",
+        "id": "0pvuhra",
+        "timestamp": "2026-08-13T09:05:42.454Z"
+      }
+    ]
+  },
+  "50301_44497": {
+    "waiters": [
+      {
+        "phone": "0911822542"
+      },
+      {
+        "phone": "0901170889"
+      },
+      {
+        "phone": "0902150061"
+      }
+    ],
+    "transactions": []
+  },
+  "50301_2": {
+    "waiters": [
+      {
+        "phone": "0911822542"
+      }
+    ],
+    "transactions": []
+  },
+  "50301_44498": {
+    "waiters": [
+      {
+        "phone": "0911822542"
+      }
+    ],
+    "transactions": []
+  }
+}

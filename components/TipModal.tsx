@@ -13,6 +13,7 @@ type Props = {
   phone: string;
   waiterPhoneNumber: string;
   companyId: string;
+  branchCode: string;
 };
 
 export default function TipModal({
@@ -24,6 +25,7 @@ export default function TipModal({
   phone,
   waiterPhoneNumber,
   companyId,
+  branchCode,
 }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -40,7 +42,7 @@ export default function TipModal({
         headers: {
           "Content-Type": "application/json",
           "x-api-key": "5D5EAFF4-D29A-485B-BDB9-785EF86FFFAE",
-          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTM5OTc3ODg2IiwianRpIjoiQzMyMEUwNTM0NDdFNjVGMDZBNkJEMzk2NzBCMEI1MDYwMDE0NTg1MDQwODVENjQxRkI4NTQ5ODhDNDU1NjREMjUxOTVGN0EyMEQ0OTJENDc5RjA3NEYxNUVDREI2NjlDNzgzQTczQjE1ODlBNTY0QjQ4OEY3NjMyNjA0RjRDMkEiLCJleHAiOjE3ODQyNzM4NzAsImlzcyI6Ikh1bHViZWplIiwiYXVkIjoiSHVsdWJlamUifQ.TAON94Z1F6dpO-t3wm0gTfrjwUD5M0Ae3inlQhWSTlk"
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTY3OTk4MDQwIiwianRpIjoiNDQ3OTgwNjEwQTA0RjYyNDk3MTcxN0NEMTlGNkZCMzQ0MTg4Njk4N0FEQTQ3M0IxOTk4MjRCMzM4QjVBNUE3MTFBRTFGREY2NUIwRjA4NzUxRDQyMDZCQTBDQUExREUxRkJCNEY2MzMyMDlEQUY1RkM3NzE0MzEyQTlFOThFNEIiLCJleHAiOjE4MDY2ODc0ODUsImlzcyI6Ikh1bHViZWplIiwiYXVkIjoiSHVsdWJlamUifQ.8cxAjbBdJxHPvSxLj4mo8bF1rbT1Oaux7Mteox3Um3Y"
         },
         body: JSON.stringify({
           waiterPhoneNumber,
@@ -59,6 +61,25 @@ export default function TipModal({
       const data = await res.json();
 
       if (res.ok && data.isSuccessful) {
+        // Record to our mock backend
+        try {
+          await fetch('/api/transaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              companyId,
+              branchCode,
+              waiterPhone: waiterPhoneNumber,
+              payerPhone: payerPhoneNumber,
+              tipAmount: tip,
+              rating,
+              comment,
+            })
+          });
+        } catch (dbErr) {
+          console.error("Failed to save to mock db", dbErr);
+        }
+
         router.push("/success");
       } else {
         alert(data.message || "Payment not successful");

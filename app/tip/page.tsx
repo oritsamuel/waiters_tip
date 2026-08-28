@@ -34,6 +34,8 @@ function PageContent() {
     const dataParam = searchParams.get("data");
     let phoneNumber = "";
     let companyId = "";
+    let branchCode = "";
+    let companyLogo = "/waiter.png";
 
     if (dataParam) {
         try {
@@ -41,6 +43,8 @@ function PageContent() {
 
             phoneNumber = decoded.phone;
             companyId = decoded.companyId;
+            branchCode = decoded.branchCode;
+            if (decoded.companyLogo) companyLogo = decoded.companyLogo;
         } catch (e) {
             console.error("Invalid data parameter");
         }
@@ -91,7 +95,7 @@ function PageContent() {
         fetchWaiter();
     }, [phoneNumber, companyId]);
 
-    const increase = () => setTip(tip + 5);
+    const increase = () => setTip(Math.min(tip + 5, 300));
     const decrease = () => tip > 5 && setTip(tip - 5);
 
     return (
@@ -103,8 +107,8 @@ function PageContent() {
 
                     {/* Logo half inside/outside */}
                     <img
-                        src={"/waiter.png"}
-                        className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-4 border-white"
+                        src={companyLogo}
+                        className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-4 border-white object-cover bg-white"
                     />
 
                     {/* Waiter image */}
@@ -163,9 +167,13 @@ function PageContent() {
                         <input
                             type="number"
                             value={tip}
-                            onChange={(e) => setTip(Number(e.target.value) || 0)}
+                            onChange={(e) => {
+                                const val = Number(e.target.value) || 0;
+                                setTip(val > 300 ? 300 : val);
+                            }}
                             className="border px-6 text-black py-1 rounded text-center"
                             min="0"
+                            max="300"
                         />
 
                         <button
@@ -288,6 +296,7 @@ function PageContent() {
                 phone={phone}
                 waiterPhoneNumber={waiter?.phoneNumber || ""}
                 companyId={companyId || ""}
+                branchCode={branchCode || ""}
             />
         </main>
     );

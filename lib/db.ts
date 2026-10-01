@@ -15,6 +15,8 @@ export type Transaction = {
 
 export type Waiter = {
   phone: string;
+  fullName?: string;
+  status?: 'active' | 'terminated';
 };
 
 export type CompanyData = {

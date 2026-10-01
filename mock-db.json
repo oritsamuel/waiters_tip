@@ -13,16 +13,19 @@
   "50301_44496": {
     "waiters": [
       {
-        "phone": "0902150061"
+        "phone": "0951493848",
+        "fullName": "Betelhem Moges",
+        "status": "active"
       },
       {
-        "phone": "0901170889"
+        "phone": "0901170889",
+        "fullName": "Btsit Asefa",
+        "status": "active"
       },
       {
-        "phone": "0951493848"
-      },
-      {
-        "phone": "0973376234"
+        "phone": "0973376234",
+        "fullName": "Fantanesh Ftegu",
+        "status": "active"
       }
     ],
     "transactions": [

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { defaultRestaurantSlug, restaurants } from "@/lib/restaurants";
 
 type Waiter = {
   photo?: string;
@@ -18,13 +19,15 @@ type Waiter = {
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const routeParams = useParams<{ restaurant?: string }>();
   const [waiters, setWaiters] = useState<Waiter[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   const dataParam = searchParams.get("data");
-  let companyId = "";
-  let branchCode = "";
+  const restaurant = restaurants[routeParams.restaurant ?? defaultRestaurantSlug];
+  let companyId = restaurant.companyId;
+  let branchCode = restaurant.branchCode;
 
   if (dataParam) {
     try {
@@ -49,7 +52,9 @@ function HomeContent() {
         if (!dbRes.ok) throw new Error("Failed to fetch company data");
         const companyData = await dbRes.json();
         
-        const waiterPhones = companyData.waiters?.map((w: any) => w.phone) || [];
+        const waiterPhones = companyData.waiters
+          ?.filter((waiter: { phone: string; status?: string }) => waiter.status !== "terminated")
+          .map((waiter: { phone: string }) => waiter.phone) || [];
 
         if (waiterPhones.length === 0) {
           setWaiters([]);
@@ -121,7 +126,7 @@ function HomeContent() {
             className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-2 border-yellow-300 object-cover bg-white"
           />
           <h1 className="text-xl font-bold text-black text-center mb-6 mt-2">
-            Our Waiters
+            {restaurant.name} Waiters
           </h1>
           <input
             type="text"

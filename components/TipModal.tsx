@@ -37,17 +37,16 @@ export default function TipModal({
     setLoading(true);
 
     try {
-      const res = await fetch("https://v7-hulubeje.cnetcommerce.com/api/waiter/tip", {
+      const res = await fetch("/api/waiter/tip", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-api-key": "5D5EAFF4-D29A-485B-BDB9-785EF86FFFAE",
-          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTY3OTk4MDQwIiwianRpIjoiNDQ3OTgwNjEwQTA0RjYyNDk3MTcxN0NEMTlGNkZCMzQ0MTg4Njk4N0FEQTQ3M0IxOTk4MjRCMzM4QjVBNUE3MTFBRTFGREY2NUIwRjA4NzUxRDQyMDZCQTBDQUExREUxRkJCNEY2MzMyMDlEQUY1RkM3NzE0MzEyQTlFOThFNEIiLCJleHAiOjE4MDY2ODc0ODUsImlzcyI6Ikh1bHViZWplIiwiYXVkIjoiSHVsdWJlamUifQ.8cxAjbBdJxHPvSxLj4mo8bF1rbT1Oaux7Mteox3Um3Y"
         },
         body: JSON.stringify({
           waiterPhoneNumber,
           payerPhoneNumber,
-          companyId,
+          companyId: Number(companyId),
           tipAmount: tip,
           rating,
           review: comment,

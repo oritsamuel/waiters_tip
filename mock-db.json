@@ -13,18 +13,103 @@
   "50301_44496": {
     "waiters": [
       {
-        "phone": "0951493848",
-        "fullName": "Betelhem Moges",
+        "phone": "0984716237",
+        "fullName": "Abdulkerim Heyru",
+        "status": "terminated"
+      },
+      {
+        "phone": "0967490874",
+        "fullName": "Daniel Eyaya",
         "status": "active"
       },
       {
-        "phone": "0901170889",
-        "fullName": "Btsit Asefa",
+        "phone": "0940030579",
+        "fullName": "Eyerus Tesema",
         "status": "active"
       },
       {
-        "phone": "0973376234",
-        "fullName": "Fantanesh Ftegu",
+        "phone": "0912687069",
+        "fullName": "Likachew Mirtneh",
+        "status": "active"
+      },
+      {
+        "phone": "0912777222",
+        "fullName": "MobileMoneyUser (0912777222)",
+        "status": "active"
+      },
+      {
+        "phone": "0974094547",
+        "fullName": "MobileMoneyUser (0974094547)",
+        "status": "active"
+      },
+      {
+        "phone": "0914407882",
+        "fullName": "Mohammed Tadese",
+        "status": "active"
+      },
+      {
+        "phone": "0963267408",
+        "fullName": "Muluken Melese",
+        "status": "active"
+      },
+      {
+        "phone": "0911822542",
+        "fullName": "Orit Samuel Seid",
+        "status": "active"
+      },
+      {
+        "phone": "0974766569",
+        "fullName": "Rediet Teshome",
+        "status": "active"
+      },
+      {
+        "phone": "0926043558",
+        "fullName": "sefu gash tumdad",
+        "status": "active"
+      },
+      {
+        "phone": "0910042539",
+        "fullName": "Sisay Dinaka",
+        "status": "active"
+      },
+      {
+        "phone": "0911748675",
+        "fullName": "SURAFEAL Telebirr",
+        "status": "active"
+      },
+      {
+        "phone": "0968580726",
+        "fullName": "Tsehay Sisay",
+        "status": "active"
+      },
+      {
+        "phone": "0921808920",
+        "fullName": "Waiter (0921808920)",
+        "status": "active"
+      },
+      {
+        "phone": "0967455178",
+        "fullName": "Waiter (0967455178)",
+        "status": "active"
+      },
+      {
+        "phone": "0985877374",
+        "fullName": "Waiter (0985877374)",
+        "status": "active"
+      },
+      {
+        "phone": "0970230293",
+        "fullName": "Yesuf Alemu",
+        "status": "active"
+      },
+      {
+        "phone": "0925356310",
+        "fullName": "Yihenew Addis",
+        "status": "active"
+      },
+      {
+        "phone": "0952633533",
+        "fullName": "Yonas Brkre",
         "status": "active"
       }
     ],
@@ -51,13 +136,64 @@
   "50301_44497": {
     "waiters": [
       {
+        "phone": "0911748675"
+      },
+      {
+        "phone": "0912777222"
+      },
+      {
+        "phone": "0984716237"
+      },
+      {
+        "phone": "0910042539"
+      },
+      {
+        "phone": "0974094547"
+      },
+      {
+        "phone": "0912687069"
+      },
+      {
+        "phone": "0952633533"
+      },
+      {
+        "phone": "0974766569"
+      },
+      {
+        "phone": "0921808920"
+      },
+      {
+        "phone": "0968580726"
+      },
+      {
+        "phone": "0985877374"
+      },
+      {
+        "phone": "0970230293"
+      },
+      {
+        "phone": "0967490874"
+      },
+      {
+        "phone": "0963267408"
+      },
+      {
+        "phone": "0925356310"
+      },
+      {
+        "phone": "0940030579"
+      },
+      {
+        "phone": "0926043558"
+      },
+      {
+        "phone": "0967455178"
+      },
+      {
+        "phone": "0914407882"
+      },
+      {
         "phone": "0911822542"
-      },
-      {
-        "phone": "0901170889"
-      },
-      {
-        "phone": "0902150061"
       }
     ],
     "transactions": []

@@ -4,12 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { EyeIcon, EyeSlashIcon, UserGroupIcon } from "@heroicons/react/24/outline";
-import { restaurants } from "@/lib/restaurants";
-
 export default function CompanyAdminLogin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [branch, setBranch] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,7 +14,7 @@ export default function CompanyAdminLogin() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !branch || !password) return;
+    if (!username.trim() || !password) return;
 
     setLoading(true);
     setError("");
@@ -26,13 +23,13 @@ export default function CompanyAdminLogin() {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, branch }),
+        body: JSON.stringify({ phoneNumber: username, password }),
       });
 
       const data = await res.json();
 
       if (res.ok && data.success) {
-        router.push(`/company-admin/report?branch=${encodeURIComponent(branch)}`);
+        router.push("/company-admin/report");
       } else {
         setError(data.error || "Login failed. Please check your credentials.");
       }
@@ -75,7 +72,7 @@ export default function CompanyAdminLogin() {
           )}
 
           <div>
-            <label htmlFor="username" className="mb-2 block text-sm font-medium text-gray-800">Username</label>
+            <label htmlFor="username" className="mb-2 block text-sm font-medium text-gray-800">Phone number</label>
             <input
               id="username"
               name="username"
@@ -85,7 +82,7 @@ export default function CompanyAdminLogin() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="h-[46px] w-full rounded-xl border border-gray-200 px-4 text-sm text-gray-900 outline-none transition focus:border-[#861d40] focus:ring-2 focus:ring-[#861d40]/15"
-              placeholder="Enter your Hulubeje account"
+              placeholder="Enter your phone number"
             />
           </div>
 
@@ -112,23 +109,6 @@ export default function CompanyAdminLogin() {
                 {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
               </button>
             </div>
-          </div>
-
-          <div>
-            <label htmlFor="branch" className="mb-2 block text-sm font-medium text-gray-800">Branch</label>
-            <select
-              id="branch"
-              name="branch"
-              required
-              value={branch}
-              onChange={(e) => setBranch(e.target.value)}
-              className="h-[46px] w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-[#861d40] focus:ring-2 focus:ring-[#861d40]/15"
-            >
-              <option value="" disabled>Select branch</option>
-              {Object.entries(restaurants).map(([slug, restaurant]) => (
-                <option key={slug} value={slug}>{restaurant.name}</option>
-              ))}
-            </select>
           </div>
 
           <button

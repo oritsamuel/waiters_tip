@@ -4,17 +4,6 @@ export type RestaurantConfig = {
   branchCode: string;
 };
 
-export const defaultRestaurantSlug = "starbuck";
+export const defaultRestaurantSlug = "";
 
-export const restaurants: Record<string, RestaurantConfig> = {
-  starbuck: {
-    name: "Starbucks",
-    companyId: "50301",
-    branchCode: "44496",
-  },
-  mcdonalds: {
-    name: "McDonald's",
-    companyId: "50301",
-    branchCode: "44497",
-  },
-};
+export const restaurants: Record<string, RestaurantConfig> = {};

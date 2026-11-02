@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -25,9 +25,9 @@ function HomeContent() {
   const [loading, setLoading] = useState(true);
 
   const dataParam = searchParams.get("data");
-  const restaurant = restaurants[routeParams.restaurant ?? defaultRestaurantSlug];
-  let companyId = restaurant.companyId;
-  let branchCode = restaurant.branchCode;
+  const restaurant = routeParams.restaurant ? restaurants[routeParams.restaurant] : undefined;
+  let companyId = restaurant?.companyId ?? "";
+  let branchCode = restaurant?.branchCode ?? "";
 
   if (dataParam) {
     try {
@@ -47,48 +47,17 @@ function HomeContent() {
       }
 
       try {
-        // 1. Fetch phone numbers for this company from our mock db
-        const dbRes = await fetch(`/api/company?companyId=${encodeURIComponent(companyId)}&branchCode=${encodeURIComponent(branchCode)}`);
-        if (!dbRes.ok) throw new Error("Failed to fetch company data");
-        const companyData = await dbRes.json();
-        
-        const waiterPhones = companyData.waiters
-          ?.filter((waiter: { phone: string; status?: string }) => waiter.status !== "terminated")
-          .map((waiter: { phone: string }) => waiter.phone) || [];
+        const dbRes = await fetch(`/api/waiter-tips?companyId=${encodeURIComponent(companyId)}&branchCode=${encodeURIComponent(branchCode)}&status=active`);
+        if (!dbRes.ok) throw new Error("Failed to fetch waiter data");
+        const payload = await dbRes.json();
+        const waitersFromApi = Array.isArray(payload?.data) ? payload.data : [];
 
-        if (waiterPhones.length === 0) {
-          setWaiters([]);
-          setLoading(false);
-          return;
-        }
-
-        // 2. Fetch waiter details from Hulubeje API for each phone
-        const results = await Promise.all(
-          waiterPhones.map(async (phone: string) => {
-            const res = await fetch(
-              `https://v7-hulubeje.cnetcommerce.com/api/waiter/get?phoneNumber=${phone}&companyId=${companyId}`,
-              {
-                headers: {
-                  "x-api-key": "5D5EAFF4-D29A-485B-BDB9-785EF86FFFAE",
-                  Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTY3OTk4MDQwIiwianRpIjoiNDQ3OTgwNjEwQTA0RjYyNDk3MTcxN0NEMTlGNkZCMzQ0MTg4Njk4N0FEQTQ3M0IxOTk4MjRCMzM4QjVBNUE3MTFBRTFGREY2NUIwRjA4NzUxRDQyMDZCQTBDQUExREUxRkJCNEY2MzMyMDlEQUY1RkM3NzE0MzEyQTlFOThFNEIiLCJleHAiOjE4MDY2ODc0ODUsImlzcyI6Ikh1bHViZWplIiwiYXVkIjoiSHVsdWJlamUifQ.8cxAjbBdJxHPvSxLj4mo8bF1rbT1Oaux7Mteox3Um3Y"
-                  ,
-                },
-              }
-            );
-
-            const text = await res.text();
-            if (!text) return null;
-
-            const result = JSON.parse(text);
-            if (result.isSuccessful) {
-              return result.data;
-            }
-            return null;
-          })
-        );
-
-        const validWaiters = results
-          .filter(Boolean)
+        const validWaiters = waitersFromApi
+          .map((waiter: any) => ({
+            ...waiter,
+            phoneNumber: waiter.waiterPhoneNumber || waiter.phone,
+            photo: waiter.photo || "/waiter.png",
+          }))
           .sort((a: any, b: any) =>
             (a.fullName || "").localeCompare(b.fullName || "")
           );
@@ -103,12 +72,12 @@ function HomeContent() {
     fetchWaiters();
   }, [companyId, branchCode]);
 
-  if (!companyId || !branchCode) {
+  if (!companyId || !branchCode || !restaurant) {
     return (
       <main className="flex justify-center items-center min-h-screen bg-gray-100">
         <div className="bg-white p-6 rounded-xl shadow text-center">
-          <h2 className="text-xl font-bold text-red-600">Invalid Link</h2>
-          <p className="text-gray-600 mt-2">Missing company or branch info.</p>
+          <h2 className="text-xl font-bold text-red-600">No active restaurant link</h2>
+          <p className="text-gray-600 mt-2">This page is empty until a valid restaurant link is provided.</p>
         </div>
       </main>
     );
@@ -172,11 +141,11 @@ function HomeContent() {
                         {w.fullName}
                       </h2>
                       <p className="text-sm text-gray-500">
-                        ⭐ {w.rating || 0}
+                        â­ {w.rating || 0}
                       </p>
                     </div>
 
-                    <div className="text-gray-400 text-xl">→</div>
+                    <div className="text-gray-400 text-xl">â†’</div>
                   </div>
                 ))}
             </div>
@@ -194,3 +163,5 @@ export default function HomePage() {
     </Suspense>
   );
 }
+
+

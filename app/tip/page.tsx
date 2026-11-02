@@ -17,6 +17,7 @@ function PageContent() {
     const [open, setOpen] = useState(false);
     const [phoneError, setPhoneError] = useState("");
     const [ratingError, setRatingError] = useState("");
+    const [waiterOptions, setWaiterOptions] = useState<any[]>([]);
 
     type Waiter = {
         photo?: string;
@@ -30,73 +31,155 @@ function PageContent() {
 
     const searchParams = useSearchParams();
 
-
     const dataParam = searchParams.get("data");
-    let phoneNumber = "";
-    let companyId = "";
-    let branchCode = "";
+    const queryCompanyId = searchParams.get("companyId") || "";
+    const queryBranchId = searchParams.get("branchId") || searchParams.get("branchCode") || "";
+    const queryWaiterPhone = searchParams.get("waiterPhoneNumber") || searchParams.get("phone") || "";
+
+    let companyId = queryCompanyId;
+    let branchCode = queryBranchId;
     let companyLogo = "/waiter.png";
+    let initialPhoneNumber = queryWaiterPhone;
 
     if (dataParam) {
         try {
             const decoded = JSON.parse(atob(dataParam));
 
-            phoneNumber = decoded.phone;
-            companyId = decoded.companyId;
-            branchCode = decoded.branchCode;
+            initialPhoneNumber = decoded.phone || initialPhoneNumber;
+            companyId = decoded.companyId || companyId;
+            branchCode = decoded.branchCode || branchCode;
             if (decoded.companyLogo) companyLogo = decoded.companyLogo;
         } catch (e) {
             console.error("Invalid data parameter");
         }
     }
 
+    const [selectedPhoneNumber, setSelectedPhoneNumber] = useState(initialPhoneNumber);
+    const phoneNumber = selectedPhoneNumber || initialPhoneNumber;
+
     useEffect(() => {
         const fetchWaiter = async () => {
-            if (!phoneNumber || !companyId) return;
+            if (!phoneNumber || !companyId || !branchCode) return;
 
             try {
                 const res = await fetch(
-                    `https://v7-hulubeje.cnetcommerce.com/api/waiter/get?phoneNumber=${phoneNumber}&companyId=${companyId}`,
-                    {
-                        headers: {
-                            "x-api-key": "5D5EAFF4-D29A-485B-BDB9-785EF86FFFAE",
-                            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTY3OTk4MDQwIiwianRpIjoiNDQ3OTgwNjEwQTA0RjYyNDk3MTcxN0NEMTlGNkZCMzQ0MTg4Njk4N0FEQTQ3M0IxOTk4MjRCMzM4QjVBNUE3MTFBRTFGREY2NUIwRjA4NzUxRDQyMDZCQTBDQUExREUxRkJCNEY2MzMyMDlEQUY1RkM3NzE0MzEyQTlFOThFNEIiLCJleHAiOjE4MDY2ODc0ODUsImlzcyI6Ikh1bHViZWplIiwiYXVkIjoiSHVsdWJlamUifQ.8cxAjbBdJxHPvSxLj4mo8bF1rbT1Oaux7Mteox3Um3Y"
-                        }
-                    }
+                    `/api/waiter-tips/public?companyId=${encodeURIComponent(companyId)}&branchId=${encodeURIComponent(branchCode)}`
                 );
 
                 if (!res.ok) {
-                    const errorText = await res.text();
-                    console.error("Request failed:", res.status, errorText);
+                    console.error("Request failed:", res.status);
                     return;
                 }
 
-                const text = await res.text();
+                const result = await res.json();
+                const waiters = Array.isArray(result) ? result : [];
+                const matched = waiters.find(
+                    (w: any) => w.phone === phoneNumber || w.phoneNumber === phoneNumber
+                );
 
-                let result;
-                try {
-                    result = JSON.parse(text);
-                } catch (err) {
-                    console.error("Invalid JSON:", text);
-                    return;
-                }
-
-                if (result?.isSuccessful) {
-                    setWaiter(result.data);
-                } else {
-                    console.error("API returned unsuccessful result:", result);
+                if (matched) {
+                    setWaiter({
+                        fullName: matched.fullName,
+                        phoneNumber: matched.phone || matched.phoneNumber,
+                        photo: matched.imageUrl || matched.photo || "/waiter.png",
+                        rating: matched.rating,
+                        companyLogo,
+                    });
                 }
             } catch (error) {
                 console.error("Failed to fetch waiter:", error);
             }
-
         };
 
         fetchWaiter();
-    }, [phoneNumber, companyId]);
+    }, [phoneNumber, companyId, branchCode]);
+
+    useEffect(() => {
+        const fetchWaiterOptions = async () => {
+            if (!companyId || !branchCode || phoneNumber) return;
+
+            try {
+                const res = await fetch(
+                    `/api/waiter-tips/public?companyId=${encodeURIComponent(companyId)}&branchId=${encodeURIComponent(branchCode)}`
+                );
+                if (!res.ok) {
+                    setWaiterOptions([]);
+                    return;
+                }
+
+                const result = await res.json();
+                const options = Array.isArray(result) ? result : [];
+                setWaiterOptions(options.map((item: any) => ({
+                    ...item,
+                    phoneNumber: item.phone || item.phoneNumber || item.waiterPhoneNumber,
+                    fullName: item.fullName || item.name || "Waiter",
+                    photo: item.imageUrl || item.photo || "/waiter.png",
+                })));
+            } catch (error) {
+                console.error("Failed to fetch waiter list", error);
+                setWaiterOptions([]);
+            }
+        };
+
+        fetchWaiterOptions();
+    }, [companyId, branchCode, phoneNumber]);
 
     const increase = () => setTip(Math.min(tip + 5, 300));
     const decrease = () => tip > 5 && setTip(tip - 5);
+
+    if (!companyId || !branchCode) {
+        return (
+            <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4">
+                <div className="bg-white rounded-xl shadow-lg p-6 text-center max-w-sm">
+                    <h2 className="text-xl font-bold text-red-600">Invalid link</h2>
+                    <p className="mt-2 text-sm text-gray-600">This page requires a valid companyId and branchId.</p>
+                </div>
+            </main>
+        );
+    }
+
+    if (!phoneNumber && !waiter) {
+        return (
+            <main className="flex justify-center items-start min-h-screen bg-gray-100 py-10 px-4">
+                <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-lg">
+                    <div className="mb-4 text-center">
+                        <h1 className="text-xl font-bold text-black">Select a waiter</h1>
+                        <p className="mt-1 text-sm text-gray-500">Company {companyId} · Branch {branchCode}</p>
+                    </div>
+
+                    {waiterOptions.length === 0 ? (
+                        <p className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-500">
+                            No active waiters are available for this branch yet.
+                        </p>
+                    ) : (
+                        <div className="space-y-3">
+                            {waiterOptions.map((option) => (
+                                <button
+                                    key={option.phoneNumber || option.waiterPhoneNumber || option.fullName}
+                                    type="button"
+                                    onClick={() => {
+                                        const nextPhone = option.phoneNumber || option.waiterPhoneNumber || "";
+                                        if (nextPhone) {
+                                            setSelectedPhoneNumber(nextPhone);
+                                            setWaiter(option);
+                                            setWaiterOptions([]);
+                                        }
+                                    }}
+                                    className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-red-300 hover:bg-red-50"
+                                >
+                                    <img src={option.photo || "/waiter.png"} alt={option.fullName || "Waiter"} className="h-12 w-12 rounded-full object-cover" />
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-black">{option.fullName || "Waiter"}</p>
+                                        <p className="text-xs text-gray-500">{option.phoneNumber || option.waiterPhoneNumber || "No phone"}</p>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </main>
+        );
+    }
 
     return (
         <main className="flex justify-center items-start min-h-screen bg-gray-100 py-10">

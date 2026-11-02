@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { restaurants } from "@/lib/restaurants";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CheckIcon,
   ExclamationTriangleIcon,
@@ -43,8 +42,6 @@ type WaiterProfile = {
 function ReportDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const branch = searchParams.get("branch");
-  const restaurant = branch ? restaurants[branch] : undefined;
   const [waiters, setWaiters] = useState<WaiterProfile[]>([]);
   const [filter, setFilter] = useState<"all" | "active" | "terminated">("all");
   const [search, setSearch] = useState("");
@@ -58,82 +55,92 @@ function ReportDashboardContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!restaurant) {
-      router.push("/company-admin/login");
-      return;
-    }
+    let isMounted = true;
+    const controller = new AbortController();
 
     const fetchReports = async () => {
+      setLoading(true);
       try {
-        // Fetch DB data
-        const res = await fetch(`/api/company?branch=${encodeURIComponent(branch!)}`);
-        if (!res.ok) throw new Error("Failed to fetch data");
-        const companyData = await res.json();
-        
-        const savedWaiters: WaiterRecord[] = companyData.waiters || [];
-        const allTransactions: Transaction[] = companyData.transactions || [];
+        const params = new URLSearchParams();
 
-        // Fetch waiter details from Hulubeje
-        const profileResults = await Promise.all(savedWaiters.map(async (waiter) => {
-            try {
-              const apiRes = await fetch(
-                `https://v7-hulubeje.cnetcommerce.com/api/waiter/get?phoneNumber=${waiter.phone}&companyId=${restaurant.companyId}`,
-                {
-                  headers: {
-                    "x-api-key": "5D5EAFF4-D29A-485B-BDB9-785EF86FFFAE",
-                    Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTY3OTk4MDQwIiwianRpIjoiNDQ3OTgwNjEwQTA0RjYyNDk3MTcxN0NEMTlGNkZCMzQ0MTg4Njk4N0FEQTQ3M0IxOTk4MjRCMzM4QjVBNUE3MTFBRTFGREY2NUIwRjA4NzUxRDQyMDZCQTBDQUExREUxRkJCNEY2MzMyMDlEQUY1RkM3NzE0MzEyQTlFOThFNEIiLCJleHAiOjE4MDY2ODc0ODUsImlzcyI6Ikh1bHViZWplIiwiYXVkIjoiSHVsdWJlamUifQ.8cxAjbBdJxHPvSxLj4mo8bF1rbT1Oaux7Mteox3Um3Y"
-                  },
-                }
-              );
-              const text = await apiRes.text();
-              if (!apiRes.ok || !text) return { waiter, profile: null };
-              const result = JSON.parse(text) as {
-                isSuccessful?: boolean;
-                data?: { fullName?: string; photo?: string };
-              };
-              if (result.isSuccessful) {
-                return { waiter, profile: result.data ?? null };
-              }
-            } catch {
-              return { waiter, profile: null };
-            }
-            return { waiter, profile: null };
-          }));
+        // Forward companyId, branchCode, or branch if provided in URL search params
+        const companyId = searchParams.get("companyId");
+        const branchCode = searchParams.get("branchCode");
+        const branch = searchParams.get("branch");
 
-        // Aggregate transactions by waiter
-        const profiles: WaiterProfile[] = profileResults.map((p) => {
-          const phone = p.waiter.phone;
-          const txns = allTransactions
-            .filter((transaction) => transaction.waiterPhone === phone)
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-          const totalTips = txns.reduce((sum, t) => sum + t.tipAmount, 0);
-          const avgRating = txns.length > 0 ? (txns.reduce((sum, t) => sum + t.rating, 0) / txns.length) : 0;
-          
-          return {
-            waiterPhoneNumber: phone,
-            fullName: p.waiter.fullName || p.profile?.fullName || `Waiter (${phone})`,
-            photo: p.profile?.photo || "/waiter.png",
-            totalTips,
-            averageRating: Number(avgRating.toFixed(1)),
-            transactions: txns,
-            status: p.waiter.status ?? "active",
-          };
-        });
+        if (companyId) params.set("companyId", companyId);
+        if (branchCode) params.set("branchCode", branchCode);
+        if (branch) params.set("branch", branch);
+
+        if (filter !== "all") {
+          params.set("status", filter);
+        }
+
+        const queryString = params.toString();
+        const url = queryString ? `/api/waiter-tips?${queryString}` : "/api/waiter-tips";
+
+        const res = await fetch(url, { signal: controller.signal });
+
+        if (res.status === 401) {
+          window.location.href = "/company-admin/login";
+          return;
+        }
+
+        const payload = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          const errorMsg =
+            payload?.error ||
+            payload?.message ||
+            `Failed to fetch data (${res.status} ${res.statusText || ""})`.trim();
+          if (isMounted) {
+            setActionError(errorMsg);
+            setWaiters([]);
+          }
+          return;
+        }
+
+        const savedWaiters = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload)
+          ? payload
+          : [];
+
+        const profiles: WaiterProfile[] = savedWaiters.map((waiter: any) => ({
+          waiterPhoneNumber: waiter.waiterPhoneNumber || waiter.phone || waiter.id,
+          fullName: waiter.fullName || waiter.name || `Waiter (${waiter.waiterPhoneNumber || waiter.phone || waiter.id})`,
+          photo: waiter.photo || "/waiter.png",
+          totalTips: Number(waiter.totalTips || 0),
+          averageRating: Number(waiter.averageRating || 0),
+          transactions: Array.isArray(waiter.transactions) ? waiter.transactions : [],
+          status: waiter.status === "terminated" ? "terminated" : "active",
+        }));
 
         profiles.sort((a, b) => a.fullName.localeCompare(b.fullName));
-        
-        setWaiters(profiles);
-      } catch (err) {
-        console.error(err);
+        if (isMounted) {
+          setActionError("");
+          setWaiters(profiles);
+        }
+      } catch (err: any) {
+        if (err.name === "AbortError") return;
+        if (isMounted) {
+          setActionError(err?.message || "Network error. Please try again.");
+          setWaiters([]);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchReports();
-  }, [branch, restaurant, router]);
 
-  if (!restaurant) return null;
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [filter, searchParams, router]);
 
   const visibleWaiters = waiters.filter((waiter) => {
     const matchesFilter = filter === "all" || waiter.status === filter;
@@ -149,16 +156,13 @@ function ReportDashboardContent() {
     setSaving(true);
     setActionError("");
     try {
-      const response = await fetch("/api/company", {
+      const response = await fetch(`/api/waiter-tips`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          branch,
-          waiters: updatedWaiters.map((waiter) => ({
-            phone: waiter.waiterPhoneNumber,
-            fullName: waiter.fullName,
-            status: waiter.status,
-          })),
+          fullName: updatedWaiters[updatedWaiters.length - 1]?.fullName,
+          phone: updatedWaiters[updatedWaiters.length - 1]?.waiterPhoneNumber,
+          remark: " ",
         }),
       });
       if (!response.ok) throw new Error("Could not save waiter changes.");
@@ -202,11 +206,30 @@ function ReportDashboardContent() {
 
   const updateWaiterStatus = async () => {
     if (!statusTarget) return;
-    const nextStatus: WaiterProfile["status"] = statusTarget.status === "active" ? "terminated" : "active";
-    const updated = waiters.map((waiter) => waiter.waiterPhoneNumber === statusTarget.waiterPhoneNumber
-      ? { ...waiter, status: nextStatus }
-      : waiter);
-    if (await saveWaiters(updated)) setStatusTarget(null);
+
+    setSaving(true);
+    setActionError("");
+
+    try {
+      const endpoint = statusTarget.status === "active"
+        ? `/api/waiter-tips/${encodeURIComponent(statusTarget.waiterPhoneNumber)}/terminate`
+        : `/api/waiter-tips/${encodeURIComponent(statusTarget.waiterPhoneNumber)}/activate`;
+
+      const response = await fetch(endpoint, { method: "POST" });
+      if (!response.ok) throw new Error("Could not update waiter status");
+
+      const nextStatus: WaiterProfile["status"] = statusTarget.status === "active" ? "terminated" : "active";
+      setWaiters((current) => current.map((waiter) =>
+        waiter.waiterPhoneNumber === statusTarget.waiterPhoneNumber
+          ? { ...waiter, status: nextStatus }
+          : waiter,
+      ));
+      setStatusTarget(null);
+    } catch {
+      setActionError("Could not update waiter status. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const formatTips = (amount: number) => `ETB ${Math.round(amount).toLocaleString()}`;
@@ -223,7 +246,18 @@ function ReportDashboardContent() {
             <h1 className="font-serif text-2xl font-bold text-[#211b19]">Waiter Tip Management</h1>
             <p className="mt-1 text-sm text-gray-600">Overview of your waiters&apos; performance and tips.</p>
           </div>
-          <div className="flex w-fit rounded-full bg-[#eee7e2] p-1" aria-label="Filter waiters">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch('/api/logout', { method: 'POST' });
+                router.push('/company-admin/login');
+              }}
+              className="rounded-xl border border-[#861d40] px-3 py-2 text-sm font-medium text-[#861d40] transition hover:bg-[#861d40] hover:text-white"
+            >
+              Logout
+            </button>
+            <div className="flex w-fit rounded-full bg-[#eee7e2] p-1" aria-label="Filter waiters">
             {(["all", "active", "terminated"] as const).map((value) => (
               <button
                 key={value}
@@ -235,6 +269,7 @@ function ReportDashboardContent() {
                 {value}
               </button>
             ))}
+            </div>
           </div>
         </header>
 
@@ -310,7 +345,26 @@ function ReportDashboardContent() {
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
-                            onClick={() => setSelectedWaiter(waiter)}
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(`/api/waiter-tips/${encodeURIComponent(waiter.waiterPhoneNumber)}`);
+                                if (!response.ok) throw new Error("Failed to fetch waiter details");
+                                const payload = await response.json();
+                                const data = payload?.data ?? null;
+                                if (!data) return;
+                                setSelectedWaiter({
+                                  waiterPhoneNumber: data.waiterPhoneNumber || data.phone || waiter.waiterPhoneNumber,
+                                  fullName: data.fullName || waiter.fullName,
+                                  photo: data.photo || waiter.photo,
+                                  totalTips: Number(data.totalTips || 0),
+                                  averageRating: Number(data.averageRating || 0),
+                                  transactions: Array.isArray(data.transactions) ? data.transactions : [],
+                                  status: data.status === "terminated" ? "terminated" : "active",
+                                });
+                              } catch (error) {
+                                console.error(error);
+                              }
+                            }}
                             className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#d4c6bd] bg-[#f5eee9] px-3 text-xs font-medium text-[#443a34] hover:bg-[#eee3dc]"
                           >
                             <InformationCircleIcon className="h-4 w-4" aria-hidden="true" />
@@ -465,3 +519,11 @@ export default function ReportDashboard() {
     </Suspense>
   );
 }
+
+
+
+
+
+
+
+

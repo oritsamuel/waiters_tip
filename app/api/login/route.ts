@@ -1,26 +1,65 @@
 import { NextResponse } from 'next/server';
-import { restaurants } from '@/lib/restaurants';
-
-const DEFAULT_ADMIN_USERNAME = 'admin';
-const DEFAULT_ADMIN_PASSWORD = 'admin123';
+import { setAuthCookie } from '@/lib/auth';
+import { HULUBEJE_AUTH_URL, HULUBEJE_API_KEY, HULUBEJE_AUTH_TOKEN } from '@/lib/config';
 
 export async function POST(request: Request) {
   try {
-    const { username, password, branch } = await request.json();
+    const body = await request.json();
+    const rawPhone = (body.phoneNumber ?? body.phone ?? body.username ?? body.code ?? '').toString().trim();
+    const password = (body.password ?? '').toString().trim();
 
-    if (!username || !password || !branch || !restaurants[branch]) {
-      return NextResponse.json({ error: 'All fields are required.' }, { status: 400 });
+    if (!rawPhone || !password) {
+      return NextResponse.json({ error: 'Phone number and password are required.' }, { status: 400 });
     }
 
-    if (
-      username.trim().toLowerCase() !== DEFAULT_ADMIN_USERNAME ||
-      password !== DEFAULT_ADMIN_PASSWORD
-    ) {
-      return NextResponse.json({ error: 'Incorrect username or password.' }, { status: 401 });
+    const authAttempts = [
+      { Authorization: HULUBEJE_AUTH_TOKEN },
+      { Authorization: `Bearer ${HULUBEJE_AUTH_TOKEN}` },
+    ];
+
+    let lastPayload: any = null;
+    let lastResponseStatus = 0;
+
+    for (const authHeader of authAttempts) {
+      const response = await fetch(HULUBEJE_AUTH_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': HULUBEJE_API_KEY,
+          ...authHeader,
+        },
+        body: JSON.stringify({
+          code: rawPhone,
+          password,
+        }),
+      });
+
+      lastResponseStatus = response.status;
+      lastPayload = await response.json().catch(() => null);
+
+      if (response.ok || (response.status !== 401 && response.status !== 403)) {
+        break;
+      }
     }
 
-    return NextResponse.json({ success: true });
-  } catch (err) {
+    const authSucceeded = lastPayload?.isSuccessful === true || lastPayload?.success === true;
+    if (!authSucceeded) {
+      const message = Array.isArray(lastPayload?.errorMessages)
+        ? lastPayload.errorMessages[0]
+        : lastPayload?.message || 'Incorrect phone number or password.';
+
+      return NextResponse.json({ error: message }, { status: lastResponseStatus === 200 ? 401 : lastResponseStatus || 401 });
+    }
+
+    const token = lastPayload?.data?.token || lastPayload?.token;
+    if (!token) {
+      return NextResponse.json({ error: 'Authentication succeeded but no token was returned.' }, { status: 500 });
+    }
+
+    const response = NextResponse.json({ success: true });
+    setAuthCookie(response, token);
+    return response;
+  } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

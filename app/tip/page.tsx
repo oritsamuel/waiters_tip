@@ -63,12 +63,7 @@ function PageContent() {
 
     useEffect(() => {
         if (!isValid || !companyId || !branchId) {
-            setWaiterOptions([]);
-            setSelectedWaiter(null);
-            setCompanyInfo(null);
-            setBranchInfo(null);
             setLoading(false);
-            setError(null);
             return;
         }
 
@@ -78,10 +73,6 @@ function PageContent() {
         const fetchBranchData = async () => {
             setLoading(true);
             setError(null);
-            setWaiterOptions([]);
-            setSelectedWaiter(null);
-            setCompanyInfo(null);
-            setBranchInfo(null);
 
             try {
                 const res = await fetch(
@@ -99,28 +90,21 @@ function PageContent() {
                     return;
                 }
 
-                const rawList = Array.isArray(payload)
+                const list: any[] = Array.isArray(payload)
                     ? payload
                     : Array.isArray(payload?.data)
                     ? payload.data
-                    : Array.isArray(payload?.waiters)
-                    ? payload.waiters
-                    : Array.isArray(payload?.items)
-                    ? payload.items
                     : payload
                     ? [payload]
                     : [];
 
-                const first = rawList[0] ?? payload ?? {};
-                const companyMeta = payload?.company ?? payload?.companyInfo ?? first?.company ?? {};
-                const branchMeta = payload?.branch ?? payload?.branchInfo ?? first?.branch ?? {};
-
-                const branchBelongsToCompany = rawList.every((item: any) => {
-                    const itemCompanyId = item.companyId ?? item.company?.id ?? companyMeta?.id;
+                // Validate that the branch belongs to the supplied company
+                const branchBelongsToCompany = list.every((item) => {
+                    const itemCompanyId = item.companyId ?? item.company?.id;
                     if (itemCompanyId != null && Number(itemCompanyId) !== Number(companyId)) {
                         return false;
                     }
-                    const itemBranchCompanyId = item.branch?.companyId ?? branchMeta?.companyId;
+                    const itemBranchCompanyId = item.branch?.companyId;
                     if (itemBranchCompanyId != null && Number(itemBranchCompanyId) !== Number(companyId)) {
                         return false;
                     }
@@ -135,15 +119,14 @@ function PageContent() {
                     return;
                 }
 
-                const isInactive = rawList.some(
-                    (item: any) =>
+                // Verify that company and branch are active
+                const isInactive = list.some(
+                    (item) =>
                         item.isActive === false ||
                         item.isCompanyActive === false ||
                         item.isBranchActive === false ||
                         item.company?.isActive === false ||
-                        item.branch?.isActive === false ||
-                        companyMeta?.isActive === false ||
-                        branchMeta?.isActive === false
+                        item.branch?.isActive === false
                 );
 
                 if (isInactive) {
@@ -154,21 +137,17 @@ function PageContent() {
                     return;
                 }
 
+                // Extract company and branch information from API response
+                const first = list[0];
                 const compName =
-                    payload?.companyName ||
-                    companyMeta?.name ||
                     first?.companyName ||
                     first?.company?.name ||
                     `Company ${companyId}`;
                 const brName =
-                    payload?.branchName ||
-                    branchMeta?.name ||
                     first?.branchName ||
                     first?.branch?.name ||
                     `Branch ${branchId}`;
                 const compLogo =
-                    payload?.companyLogo ||
-                    companyMeta?.logo ||
                     first?.companyLogo ||
                     first?.company?.logo ||
                     "/waiter.png";
@@ -177,7 +156,7 @@ function PageContent() {
                     setCompanyInfo({ name: compName, logo: compLogo });
                     setBranchInfo({ name: brName });
 
-                    const mappedWaiters: Waiter[] = rawList
+                    const mappedWaiters: Waiter[] = list
                         .filter((item: any) => item.status !== "terminated" && item.isActive !== false)
                         .map((item: any) => ({
                             phoneNumber: item.phone || item.phoneNumber || item.waiterPhoneNumber || "",
@@ -189,6 +168,7 @@ function PageContent() {
 
                     setWaiterOptions(mappedWaiters);
 
+                    // If a waiter phone number was in URL parameters, find and select them
                     if (queryWaiterPhone) {
                         const matched = mappedWaiters.find(
                             (w) => w.phoneNumber === queryWaiterPhone

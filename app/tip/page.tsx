@@ -14,6 +14,36 @@ type Waiter = {
     companyLogo?: string;
 };
 
+type ApiWaiterItem = {
+    companyId?: string | number;
+    company?: {
+        id?: string | number;
+        name?: string;
+        logo?: string;
+        isActive?: boolean;
+    };
+    branch?: {
+        companyId?: string | number;
+        name?: string;
+        isActive?: boolean;
+    };
+    status?: string;
+    isActive?: boolean;
+    isCompanyActive?: boolean;
+    isBranchActive?: boolean;
+    phone?: string;
+    phoneNumber?: string;
+    waiterPhoneNumber?: string;
+    fullName?: string;
+    name?: string;
+    imageUrl?: string;
+    photo?: string;
+    rating?: number;
+    companyName?: string;
+    branchName?: string;
+    companyLogo?: string;
+};
+
 function isValidId(val: string | null): boolean {
     if (!val) return false;
     const trimmed = val.trim();
@@ -23,7 +53,7 @@ function isValidId(val: string | null): boolean {
 }
 
 function PageContent() {
-    const [tip, setTip] = useState(25);
+    const [tip, setTip] = useState(5);
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState("");
     const [phone, setPhone] = useState("");
@@ -63,6 +93,8 @@ function PageContent() {
 
     useEffect(() => {
         if (!isValid || !companyId || !branchId) {
+            // The page is intentionally gated by URL params; this state transition completes the fetch flow.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLoading(false);
             return;
         }
@@ -90,16 +122,16 @@ function PageContent() {
                     return;
                 }
 
-                const list: any[] = Array.isArray(payload)
-                    ? payload
+                const list: ApiWaiterItem[] = Array.isArray(payload)
+                    ? (payload as ApiWaiterItem[])
                     : Array.isArray(payload?.data)
-                    ? payload.data
+                    ? (payload.data as ApiWaiterItem[])
                     : payload
-                    ? [payload]
+                    ? [payload as ApiWaiterItem]
                     : [];
 
                 // Validate that the branch belongs to the supplied company
-                const branchBelongsToCompany = list.every((item) => {
+                const branchBelongsToCompany = list.every((item: ApiWaiterItem) => {
                     const itemCompanyId = item.companyId ?? item.company?.id;
                     if (itemCompanyId != null && Number(itemCompanyId) !== Number(companyId)) {
                         return false;
@@ -121,7 +153,7 @@ function PageContent() {
 
                 // Verify that company and branch are active
                 const isInactive = list.some(
-                    (item) =>
+                    (item: ApiWaiterItem) =>
                         item.isActive === false ||
                         item.isCompanyActive === false ||
                         item.isBranchActive === false ||
@@ -157,8 +189,8 @@ function PageContent() {
                     setBranchInfo({ name: brName });
 
                     const mappedWaiters: Waiter[] = list
-                        .filter((item: any) => item.status !== "terminated" && item.isActive !== false)
-                        .map((item: any) => ({
+                        .filter((item: ApiWaiterItem) => item.status !== "terminated" && item.isActive !== false)
+                        .map((item: ApiWaiterItem) => ({
                             phoneNumber: item.phone || item.phoneNumber || item.waiterPhoneNumber || "",
                             fullName: item.fullName || item.name || "Waiter",
                             photo: item.imageUrl || item.photo || "/waiter.png",
@@ -180,8 +212,9 @@ function PageContent() {
 
                     setLoading(false);
                 }
-            } catch (err: any) {
-                if (err.name === "AbortError") return;
+            } catch (err: unknown) {
+                const errorName = typeof err === "object" && err !== null && "name" in err ? String((err as { name?: string }).name) : "";
+                if (errorName === "AbortError") return;
                 console.error("Failed to fetch branch waiter data", err);
                 if (isMounted) {
                     setError("Failed to load company and branch data. Please try again.");
@@ -204,9 +237,9 @@ function PageContent() {
     // 1. Missing or Invalid query parameters
     if (!isValid) {
         return (
-            <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4">
-                <div className="bg-white rounded-xl shadow-lg p-6 text-center max-w-sm">
-                    <h2 className="text-xl font-bold text-red-600">Invalid link</h2>
+            <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4 py-10">
+                <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center border border-yellow-300">
+                    <h2 className="text-xl font-bold text-black">Invalid link</h2>
                     <p className="mt-2 text-sm text-gray-600">This page requires a valid companyId and branchId.</p>
                 </div>
             </main>
@@ -216,9 +249,9 @@ function PageContent() {
     // 2. Loading state
     if (loading) {
         return (
-            <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4">
+            <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4 py-10">
                 <div className="flex flex-col items-center py-6">
-                    <div className="w-8 h-8 border-4 border-gray-300 border-t-red-600 rounded-full animate-spin mb-4"></div>
+                    <div className="w-8 h-8 border-4 border-gray-300 border-t-yellow-500 rounded-full animate-spin mb-4"></div>
                     <p className="text-gray-600 text-sm">Loading branch details...</p>
                 </div>
             </main>
@@ -228,9 +261,9 @@ function PageContent() {
     // 3. Error state (e.g. inactive, branch mismatch, or not found)
     if (error) {
         return (
-            <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4">
-                <div className="bg-white rounded-xl shadow-lg p-6 text-center max-w-sm">
-                    <h2 className="text-xl font-bold text-red-600">Unavailable</h2>
+            <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4 py-10">
+                <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center border border-yellow-300">
+                    <h2 className="text-xl font-bold text-black">Unavailable</h2>
                     <p className="mt-2 text-sm text-gray-600">{error}</p>
                 </div>
             </main>
@@ -245,10 +278,15 @@ function PageContent() {
     if (!selectedWaiter) {
         return (
             <main className="flex justify-center items-start min-h-screen bg-gray-100 py-10 px-4">
-                <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-lg">
-                    <div className="mb-4 text-center">
-                        <h1 className="text-xl font-bold text-black">Select a waiter</h1>
-                        <p className="mt-1 text-sm text-gray-500">{displayName} · {displayBranch}</p>
+                <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center space-y-6 relative border border-yellow-300">
+                    <div className="bg-white border border-yellow-300 rounded-xl shadow-lg pt-14 pb-6 px-4 relative text-center mt-6">
+                        <img
+                            src={displayLogo}
+                            alt="Company logo"
+                            className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-2 border-yellow-300 object-cover bg-white"
+                        />
+                        <h1 className="text-xl font-bold text-black text-center mb-4 mt-2">Our waiters</h1>
+                        {/* <p className="mt-1 text-sm text-gray-500">{displayName} · {displayBranch}</p> */}
                     </div>
 
                     {waiterOptions.length === 0 ? (
@@ -262,7 +300,7 @@ function PageContent() {
                                     key={option.phoneNumber || option.fullName}
                                     type="button"
                                     onClick={() => setSelectedWaiter(option)}
-                                    className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-red-300 hover:bg-red-50"
+                                    className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-yellow-300 hover:bg-yellow-50"
                                 >
                                     <img
                                         src={option.photo || "/waiter.png"}
@@ -285,10 +323,10 @@ function PageContent() {
     // 5. Tipping state (when waiter is selected)
     return (
         <main className="flex justify-center items-start min-h-screen bg-gray-100 py-10">
-            <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center space-y-6 relative">
+            <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center space-y-6 relative border border-yellow-300">
 
                 {/* Card with logo half in/out */}
-                <div className="bg-white border-1 border-yellow-300 rounded-xl shadow-lg pt-14 pb-6 px-4 relative text-center">
+                <div className="bg-white border border-yellow-300 rounded-xl shadow-lg pt-14 pb-6 px-4 relative text-center">
 
                     {/* Logo half inside/outside */}
                     <img
@@ -298,9 +336,9 @@ function PageContent() {
                     />
 
                     {/* Company and Branch header */}
-                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-2 font-medium">
+                    {/* <p className="text-xs text-gray-400 uppercase tracking-wider mb-2 font-medium">
                         {displayName} · {displayBranch}
-                    </p>
+                    </p> */}
 
                     {/* Waiter image */}
                     <div className="relative flex justify-center mt-2">
@@ -346,7 +384,7 @@ function PageContent() {
                         <button
                             type="button"
                             onClick={() => setSelectedWaiter(null)}
-                            className="text-xs text-red-600 hover:underline mt-1 inline-block"
+                            className="text-xs text-yellow-700 hover:underline mt-1 inline-block"
                         >
                             Select different waiter
                         </button>

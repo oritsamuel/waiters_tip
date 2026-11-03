@@ -34,6 +34,7 @@ export default function TipModal({
   const [loading, setLoading] = useState(false);
   const payerPhoneNumber = "0" + phone;
   const effectiveBranchId = branchId ?? branchCode ?? "";
+  const effectiveBranchCode = branchCode ?? branchId ?? "";
 
   if (!show) return null;
 
@@ -52,6 +53,7 @@ export default function TipModal({
           payerPhoneNumber,
           companyId: Number(companyId),
           ...(effectiveBranchId ? { branchId: Number(effectiveBranchId) } : {}),
+          ...(effectiveBranchCode ? { branchCode: String(effectiveBranchCode) } : {}),
           tipAmount: tip,
           rating,
           review: comment,
@@ -72,9 +74,8 @@ export default function TipModal({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               companyId: String(companyId),
-              branchCode: String(effectiveBranchId),
-
-
+              branchCode: String(effectiveBranchCode || effectiveBranchId),
+              ...(effectiveBranchId ? { branchId: String(effectiveBranchId) } : {}),
               waiterPhone: waiterPhoneNumber,
               payerPhone: payerPhoneNumber,
               tipAmount: tip,

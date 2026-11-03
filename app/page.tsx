@@ -26,14 +26,15 @@ function HomeContent() {
 
   const dataParam = searchParams.get("data");
   const restaurant = routeParams.restaurant ? restaurants[routeParams.restaurant] : undefined;
-  let companyId = restaurant?.companyId ?? "";
-  let branchCode = restaurant?.branchCode ?? "";
+  let companyId = restaurant?.companyId ?? searchParams.get("companyId") ?? "";
+  let branchCode = restaurant?.branchCode ?? searchParams.get("branchCode") ?? searchParams.get("branchId") ?? "";
 
   if (dataParam) {
     try {
       const decoded = JSON.parse(atob(dataParam));
       if (decoded.companyId) companyId = decoded.companyId;
       if (decoded.branchCode) branchCode = decoded.branchCode;
+      if (decoded.branchId) branchCode = decoded.branchId;
     } catch (e) {
       console.error("Invalid data parameter", e);
     }
@@ -47,17 +48,35 @@ function HomeContent() {
       }
 
       try {
-        const dbRes = await fetch(`/api/waiter-tips?companyId=${encodeURIComponent(companyId)}&branchCode=${encodeURIComponent(branchCode)}&status=active`);
-        if (!dbRes.ok) throw new Error("Failed to fetch waiter data");
+        const publicUrl = `/api/waiter-tips/public?companyId=${encodeURIComponent(companyId)}&branchId=${encodeURIComponent(branchCode)}`;
+        const dbRes = await fetch(publicUrl);
+        if (!dbRes.ok) {
+          const fallbackRes = await fetch(`/api/waiter-tips?companyId=${encodeURIComponent(companyId)}&branchCode=${encodeURIComponent(branchCode)}&status=active`);
+          if (!fallbackRes.ok) throw new Error("Failed to fetch waiter data");
+          const payload = await fallbackRes.json();
+          const waitersFromApi = Array.isArray(payload?.data) ? payload.data : [];
+          const validWaiters = waitersFromApi
+            .map((waiter: any) => ({
+              ...waiter,
+              phoneNumber: waiter.waiterPhoneNumber || waiter.phone,
+              photo: waiter.photo || "/waiter.png",
+            }))
+            .sort((a: any, b: any) => (a.fullName || "").localeCompare(b.fullName || ""));
+          setWaiters(validWaiters);
+          return;
+        }
+
         const payload = await dbRes.json();
-        const waitersFromApi = Array.isArray(payload?.data) ? payload.data : [];
+        const waitersFromApi = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
 
         const validWaiters = waitersFromApi
           .map((waiter: any) => ({
             ...waiter,
-            phoneNumber: waiter.waiterPhoneNumber || waiter.phone,
-            photo: waiter.photo || "/waiter.png",
+            phoneNumber: waiter.waiterPhoneNumber || waiter.phone || waiter.phoneNumber,
+            photo: waiter.imageUrl || waiter.photo || "/waiter.png",
+            fullName: waiter.fullName || waiter.name || "Waiter",
           }))
+          .filter((waiter: any) => waiter.phoneNumber)
           .sort((a: any, b: any) =>
             (a.fullName || "").localeCompare(b.fullName || "")
           );
@@ -72,7 +91,10 @@ function HomeContent() {
     fetchWaiters();
   }, [companyId, branchCode]);
 
-  if (!companyId || !branchCode || !restaurant) {
+  const hasDirectContext = !!companyId && !!branchCode;
+  const showRestaurantHeader = !!restaurant && !!companyId && !!branchCode;
+
+  if (!hasDirectContext && !restaurant) {
     return (
       <main className="flex justify-center items-center min-h-screen bg-gray-100">
         <div className="bg-white p-6 rounded-xl shadow text-center">
@@ -95,7 +117,7 @@ function HomeContent() {
             className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-2 border-yellow-300 object-cover bg-white"
           />
           <h1 className="text-xl font-bold text-black text-center mb-6 mt-2">
-            {restaurant.name} Waiters
+            {restaurant?.name || "Company Waiters"}
           </h1>
           <input
             type="text"

@@ -19,12 +19,27 @@ function buildExternalUrl(requestUrl: string) {
     externalUrl.searchParams.set(key, value);
   });
 
+  const requestedBranchId = requestUrlObj.searchParams.get('branchId');
+  const requestedBranchCode = requestUrlObj.searchParams.get('branchCode');
+
+  if (requestedBranchId && !requestedBranchCode) {
+    externalUrl.searchParams.set('branchCode', requestedBranchId);
+  }
+
+  if (requestedBranchCode && !requestedBranchId) {
+    externalUrl.searchParams.set('branchId', requestedBranchCode);
+  }
+
   if (!externalUrl.searchParams.has('companyId')) {
     externalUrl.searchParams.set('companyId', DEFAULT_COMPANY_ID);
   }
 
   if (!externalUrl.searchParams.has('branchCode')) {
     externalUrl.searchParams.set('branchCode', DEFAULT_BRANCH_CODE);
+  }
+
+  if (!externalUrl.searchParams.has('branchId') && externalUrl.searchParams.has('branchCode')) {
+    externalUrl.searchParams.set('branchId', externalUrl.searchParams.get('branchCode')!);
   }
 
   return externalUrl;

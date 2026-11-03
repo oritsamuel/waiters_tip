@@ -12,8 +12,9 @@ type Props = {
   comment: string;
   phone: string;
   waiterPhoneNumber: string;
-  companyId: string;
-  branchCode: string;
+  companyId: string | number;
+  branchCode?: string | number;
+  branchId?: string | number;
 };
 
 export default function TipModal({
@@ -26,10 +27,13 @@ export default function TipModal({
   waiterPhoneNumber,
   companyId,
   branchCode,
+  branchId,
+
 }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const payerPhoneNumber = "0" + phone;
+  const effectiveBranchId = branchId ?? branchCode ?? "";
 
   if (!show) return null;
 
@@ -47,6 +51,7 @@ export default function TipModal({
           waiterPhoneNumber,
           payerPhoneNumber,
           companyId: Number(companyId),
+          ...(effectiveBranchId ? { branchId: Number(effectiveBranchId) } : {}),
           tipAmount: tip,
           rating,
           review: comment,
@@ -66,8 +71,10 @@ export default function TipModal({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              companyId,
-              branchCode,
+              companyId: String(companyId),
+              branchCode: String(effectiveBranchId),
+
+
               waiterPhone: waiterPhoneNumber,
               payerPhone: payerPhoneNumber,
               tipAmount: tip,

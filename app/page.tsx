@@ -111,10 +111,10 @@ function HomeContent() {
     <main className="flex justify-center items-start min-h-screen bg-gray-100 py-10">
       <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center space-y-6 relative">
 
-        <div className="bg-white border-1 border-yellow-300 rounded-xl shadow-lg pt-14 pb-6 px-4 relative text-center mt-6">
+        <div className="bg-white border-1 border-red-300 rounded-xl shadow-lg pt-14 pb-6 px-4 relative text-center mt-6">
           <img
             src={companyLogo}
-            className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-2 border-yellow-300 object-cover bg-white"
+            className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-2 border-red-300 object-cover bg-white"
           />
           <h1 className="text-xl font-bold text-black text-center mb-6 mt-2">
             {restaurant?.name || "Company Waiters"}
@@ -124,7 +124,7 @@ function HomeContent() {
             placeholder="Search waiter..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg mb-4 text-black focus:ring-2 focus:ring-yellow-400 outline-none"
+            className="w-full p-2 border border-gray-300 rounded-lg mb-4 text-black focus:ring-2 focus:ring-red-400 outline-none"
           />
 
           {loading ? (

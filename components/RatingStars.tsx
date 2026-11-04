@@ -15,7 +15,7 @@ export default function RatingStars({ rating, setRating }: Props) {
           key={star}
           onClick={() => setRating && setRating(star)}
           className={`w-6 cursor-pointer ${
-            rating >= star ? "text-yellow-400" : "text-gray-300"
+            rating >= star ? "text-red-400" : "text-gray-300"
           }`}
         />
       ))}

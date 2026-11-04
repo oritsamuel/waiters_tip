@@ -52,6 +52,21 @@ function isValidId(val: string | null): boolean {
     return Number.isSafeInteger(num) && num > 0;
 }
 
+function getDisplayCompanyName(companyName: string | undefined, companyLogo: string | undefined, companyId: string): string {
+    const trimmedName = companyName?.trim();
+    if (trimmedName) return trimmedName;
+
+    const logoName = companyLogo
+        ?.split("/")
+        .pop()
+        ?.replace(/\.[^/.]+$/, "")
+        ?.replace(/[_-]+/g, " ")
+        .trim();
+
+    if (logoName) return logoName;
+    return `Company ${companyId}`;
+}
+
 const DEFAULT_COMMENT_OPTIONS = [
     "Thanks!",
     "Great service!",
@@ -175,20 +190,60 @@ function PageContent() {
                     return;
                 }
 
+                // Fetch the merchant record for this company to display the real company name
+                let companyNameFromMerchant: string | undefined;
+                try {
+                    const merchantRes = await fetch(`/api/merchants?companyId=${encodeURIComponent(companyId)}`, { signal: controller.signal });
+                    if (merchantRes.ok) {
+                        const merchantPayload = await merchantRes.json().catch(() => null);
+                        const merchantList = Array.isArray(merchantPayload?.data)
+                            ? (merchantPayload.data as Record<string, unknown>[])
+                            : Array.isArray(merchantPayload)
+                            ? (merchantPayload as Record<string, unknown>[])
+                            : [];
+
+                        const matchedMerchant = merchantList.find((merchant: Record<string, unknown>) => {
+                            const company = merchant.company as Record<string, unknown> | undefined;
+                            const merchantObj = merchant.merchant as Record<string, unknown> | undefined;
+                            const values = [
+                                merchant.id,
+                                merchant.companyId,
+                                merchant.merchantId,
+                                company?.id,
+                                merchantObj?.id,
+                                merchant.company_id,
+                                merchant.merchant_id,
+                            ];
+                            return values.some((value) => value != null && String(value) === String(companyId));
+                        });
+
+                        companyNameFromMerchant =
+                            matchedMerchant?.name ||
+                            matchedMerchant?.companyName ||
+                            matchedMerchant?.merchantName ||
+                            matchedMerchant?.company?.name ||
+                            matchedMerchant?.company?.companyName ||
+                            matchedMerchant?.merchant?.name;
+                    }
+                } catch {
+                    companyNameFromMerchant = undefined;
+                }
+
                 // Extract company and branch information from API response
                 const first = list[0];
-                const compName =
-                    first?.companyName ||
-                    first?.company?.name ||
-                    `Company ${companyId}`;
-                const brName =
-                    first?.branchName ||
-                    first?.branch?.name ||
-                    `Branch ${branchId}`;
                 const compLogo =
                     first?.companyLogo ||
                     first?.company?.logo ||
                     "/waiter.png";
+                const compName = getDisplayCompanyName(
+                    companyNameFromMerchant || first?.companyName || first?.company?.name,
+                    compLogo,
+                    companyId
+                );
+                const brName =
+                    first?.branchName ||
+                    first?.branch?.name ||
+                    `Branch ${branchId}`;
 
                 if (isMounted) {
                     setCompanyInfo({ name: compName, logo: compLogo });
@@ -244,7 +299,7 @@ function PageContent() {
     if (!isValid) {
         return (
             <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4 py-10">
-                <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center border border-yellow-300">
+                <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center border border-red-300">
                     <h2 className="text-xl font-bold text-black">Invalid link</h2>
                     <p className="mt-2 text-sm text-gray-600">This page requires a valid companyId and branchId.</p>
                 </div>
@@ -257,7 +312,7 @@ function PageContent() {
         return (
             <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4 py-10">
                 <div className="flex flex-col items-center py-6">
-                    <div className="w-8 h-8 border-4 border-gray-300 border-t-yellow-500 rounded-full animate-spin mb-4"></div>
+                    <div className="w-8 h-8 border-4 border-gray-300 border-t-red-500 rounded-full animate-spin mb-4"></div>
                     <p className="text-gray-600 text-sm">Loading branch details...</p>
                 </div>
             </main>
@@ -268,7 +323,7 @@ function PageContent() {
     if (error) {
         return (
             <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4 py-10">
-                <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center border border-yellow-300">
+                <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center border border-red-300">
                     <h2 className="text-xl font-bold text-black">Unavailable</h2>
                     <p className="mt-2 text-sm text-gray-600">{error}</p>
                 </div>
@@ -276,7 +331,7 @@ function PageContent() {
         );
     }
 
-    const displayName = companyInfo?.name || `Company ${companyId}`;
+    const displayName = companyInfo?.name || getDisplayCompanyName(undefined, undefined, companyId);
     const displayBranch = branchInfo?.name || `Branch ${branchId}`;
     const displayLogo =  "/HB_logo.png";
 
@@ -284,15 +339,18 @@ function PageContent() {
     if (!selectedWaiter) {
         return (
             <main className="flex justify-center items-start min-h-screen bg-gray-100 py-10 px-4">
-                <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center space-y-6 relative border border-yellow-300">
-                    <div className="bg-white border border-yellow-300 rounded-xl shadow-lg pt-14 pb-6 px-4 relative text-center mt-6">
+                <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center space-y-6 relative border border-red-300">
+                    <div className="bg-white border border-red-300 rounded-xl shadow-lg pt-14 pb-6 px-4 relative text-center mt-6">
                         <img
                             src={displayLogo}
                             alt="Company logo"
-                            className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-2 border-yellow-300 object-cover bg-white"
+                            className="w-20 h-20 rounded-full absolute -top-10 left-1/2 transform -translate-x-1/2 border-2 border-red-300 object-cover bg-white"
                         />
-                        <h1 className="text-xl font-bold text-black text-center mb-4 mt-2">Our waiters</h1>
-                        {/* <p className="mt-1 text-sm text-gray-500">{displayName} · {displayBranch}</p> */}
+                        <div className="mt-2">
+                            <h2 className="text-lg font-bold text-black">{displayName}</h2>
+                            <p className="text-xs font-medium uppercase tracking-wide text-red-700">Tip the waiters</p>
+                        </div>
+                       
                     </div>
 
                     {waiterOptions.length === 0 ? (
@@ -306,7 +364,7 @@ function PageContent() {
                                     key={option.phoneNumber || option.fullName}
                                     type="button"
                                     onClick={() => setSelectedWaiter(option)}
-                                    className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-yellow-300 hover:bg-yellow-50"
+                                    className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-red-300 hover:bg-red-50"
                                 >
                                     <img
                                         src={option.photo || "/waiter.png"}
@@ -329,10 +387,21 @@ function PageContent() {
     // 5. Tipping state (when waiter is selected)
     return (
         <main className="flex justify-center items-start min-h-screen bg-gray-100 py-10">
-            <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center space-y-6 relative border border-yellow-300">
+            <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center space-y-6 relative border border-red-300">
 
                 {/* Card with logo half in/out */}
-                <div className="bg-white border border-yellow-300 rounded-xl shadow-lg pt-14 pb-6 px-4 relative text-center">
+                <div className="bg-white border border-red-300 rounded-xl shadow-lg pt-14 pb-6 px-4 relative text-center">
+
+                    {waiterOptions.length > 1 && (
+                        <button
+                            type="button"
+                            onClick={() => setSelectedWaiter(null)}
+                            aria-label="Back to waiters list"
+                            className="absolute top-3 left-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-red-300 bg-white text-lg text-gray-700 shadow-sm transition hover:bg-red-50"
+                        >
+                            <span aria-hidden="true">←</span>
+                        </button>
+                    )}
 
                     {/* Logo half inside/outside */}
                     <img
@@ -342,13 +411,14 @@ function PageContent() {
                     />
 
                     {/* Company and Branch header */}
-                    {/* <p className="text-xs text-gray-400 uppercase tracking-wider mb-2 font-medium">
-                        {displayName} · {displayBranch}
-                    </p> */}
+                    <div className="mt-2">
+                        <h2 className="text-lg font-bold text-black">{displayName}</h2>
+                        <p className="text-xs font-medium uppercase tracking-wide text-red-700">Tip the waiters</p>
+                    </div>
 
                     {/* Waiter image */}
                     <div className="relative flex justify-center mt-2">
-                        <div className="relative group p-1 rounded-full bg-gradient-to-b from-yellow-200 to-yellow-500 shadow-md">
+                        <div className="relative group p-1 rounded-full bg-gradient-to-b from-red-200 to-red-500 shadow-md">
                             <img
                                 src={selectedWaiter.photo || "/waiter.png"}
                                 className="w-20 h-20 rounded-full cursor-pointer"
@@ -385,16 +455,6 @@ function PageContent() {
                         <RatingStars rating={selectedWaiter.rating || 0} />
                     </div>
 
-                    {/* Option to switch waiter */}
-                    {waiterOptions.length > 1 && (
-                        <button
-                            type="button"
-                            onClick={() => setSelectedWaiter(null)}
-                            className="text-xs text-yellow-700 hover:underline mt-1 inline-block"
-                        >
-                            Select different waiter
-                        </button>
-                    )}
                 </div>
 
                 {/* Tip Section */}
@@ -417,11 +477,10 @@ function PageContent() {
                             value={tip}
                             onChange={(e) => {
                                 const val = Number(e.target.value) || 0;
-                                setTip(val > 300 ? 300 : val);
+                                setTip(val);
                             }}
                             className="border px-6 text-black py-1 rounded text-center w-28"
                             min="0"
-                            max="300"
                         />
 
                         <button

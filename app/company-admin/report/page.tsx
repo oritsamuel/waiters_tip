@@ -48,6 +48,7 @@ function ReportDashboardContent() {
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -260,10 +261,152 @@ function ReportDashboardContent() {
   };
 
   const formatTips = (amount: number) => `ETB ${Math.round(amount).toLocaleString()}`;
-  const formatTimestamp = (timestamp: string) => new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(timestamp));
+  const formatTimestamp = (timestamp: string) => {
+    const parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) return "—";
+
+    return new Intl.DateTimeFormat("en-GB", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(parsed);
+  };
+
+  const mergeWaiterDetails = (
+    waiter: WaiterProfile,
+    detail: Record<string, unknown> | null | undefined,
+  ): WaiterProfile => {
+    const source = (detail ?? {}) as Partial<WaiterProfile> & {
+      waiterPhoneNumber?: string;
+      waiterId?: string;
+      waiter_id?: string;
+      phone?: string;
+      fullName?: string;
+      name?: string;
+      photo?: string;
+      totalTips?: number | string;
+      averageRating?: number | string;
+      transactions?: Transaction[];
+      tipHistory?: Array<{
+        id?: string | number;
+        amount?: number | string;
+        rating?: number | string;
+        reviewText?: string;
+        customerPhone?: string;
+        createdAt?: string;
+        timestamp?: string;
+        waiterPhone?: string;
+        payerPhone?: string;
+        tipAmount?: number | string;
+        comment?: string;
+      }>;
+      status?: "active" | "terminated";
+      isActive?: boolean;
+    };
+
+    const historyItems = Array.isArray(source.tipHistory)
+      ? source.tipHistory
+      : Array.isArray(source.transactions)
+        ? source.transactions
+        : [];
+
+    const resolvedTransactions = historyItems.map((transaction: Record<string, unknown>, index: number) => {
+      const payment = transaction as Partial<Transaction> & {
+        amount?: number | string;
+        customerPhone?: string;
+        reviewText?: string;
+        createdAt?: string;
+        tipAmount?: number | string;
+        payerPhone?: string;
+        waiterPhone?: string;
+      };
+
+      return {
+        id: String(payment.id || `${waiter.waiterPhoneNumber}-${index}`),
+        waiterPhone: payment.waiterPhone || waiter.waiterPhoneNumber,
+        payerPhone: payment.payerPhone || payment.customerPhone,
+        tipAmount: Number(payment.tipAmount ?? payment.amount ?? 0),
+        rating: Number(payment.rating ?? 0),
+        comment: payment.comment || payment.reviewText || "",
+        timestamp: payment.timestamp || payment.createdAt || new Date().toISOString(),
+      };
+    });
+
+    const resolvedStatus: WaiterProfile["status"] = typeof source.isActive === "boolean"
+      ? (source.isActive ? "active" : "terminated")
+      : source.status === "terminated"
+        ? "terminated"
+        : "active";
+
+    const totalTips = Number(source.totalTips ?? resolvedTransactions.reduce((sum: number, transaction: Transaction) => sum + Number(transaction.tipAmount || 0), 0));
+    const averageRating = Number(
+      source.averageRating ?? (
+        resolvedTransactions.length
+          ? resolvedTransactions.reduce((sum: number, transaction: Transaction) => sum + Number(transaction.rating || 0), 0) / resolvedTransactions.length
+          : waiter.averageRating
+      ),
+    );
+
+    return {
+      ...waiter,
+      id: source.id || source.waiterId || source.waiter_id || waiter.id,
+      waiterPhoneNumber: source.waiterPhoneNumber || source.phone || waiter.waiterPhoneNumber,
+      fullName: source.fullName || source.name || waiter.fullName,
+      photo: source.photo || waiter.photo,
+      totalTips,
+      averageRating,
+      transactions: resolvedTransactions,
+      status: resolvedStatus,
+    };
+  };
+
+  const handleOpenWaiterDetails = async (waiter: WaiterProfile) => {
+    const waiterIdentifier = waiter.id || waiter.waiterPhoneNumber;
+    setSelectedWaiter(waiter);
+
+    if (!waiterIdentifier) {
+      return;
+    }
+
+    setActionError("");
+    setDetailsLoading(true);
+
+    try {
+      const params = new URLSearchParams();
+    const companyId = searchParams.get("companyId");
+    const branchCode = searchParams.get("branchCode");
+    const branch = searchParams.get("branch");
+
+    if (companyId) params.set("companyId", companyId);
+    if (branchCode) params.set("branchCode", branchCode);
+    if (branch) params.set("branch", branch);
+
+    const detailUrl = `/api/waiter-tips/${encodeURIComponent(waiterIdentifier)}${params.toString() ? `?${params.toString()}` : ""}`;
+    const response = await fetch(detailUrl);
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || payload?.message || "Could not load waiter details.");
+      }
+
+      const payload = await response.json().catch(() => null);
+      const detailPayload = payload?.data ?? payload ?? null;
+      const detail = Array.isArray(detailPayload)
+        ? detailPayload.find((candidate) => {
+            const record = candidate as Record<string, unknown>;
+            const candidateId = record.id ?? record.waiterId ?? record.waiter_id;
+            const candidatePhone = record.waiterPhoneNumber ?? record.phone ?? record.waiterPhone;
+            return String(candidateId ?? "") === String(waiterIdentifier) || String(candidatePhone ?? "") === String(waiter.waiterPhoneNumber);
+          }) ?? detailPayload[0] ?? null
+        : detailPayload;
+
+      setSelectedWaiter(mergeWaiterDetails(waiter, detail));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not load waiter details.";
+      setActionError(message);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#f4e5df] px-4 py-5 sm:px-6 lg:px-10">
@@ -372,7 +515,7 @@ function ReportDashboardContent() {
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
-                            onClick={() => setSelectedWaiter(waiter)}
+                            onClick={() => handleOpenWaiterDetails(waiter)}
                             className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#d4c6bd] bg-[#f5eee9] px-3 text-xs font-medium text-[#443a34] hover:bg-[#eee3dc]"
                           >
                             <InformationCircleIcon className="h-4 w-4" aria-hidden="true" />
@@ -461,7 +604,9 @@ function ReportDashboardContent() {
                 </span>
               </div>
 
-              {selectedWaiter.transactions.length === 0 ? (
+              {detailsLoading ? (
+                <p className="rounded-2xl border border-dashed border-[#ead2cd] bg-[#fff9f8] px-4 py-8 text-center text-sm text-gray-500">Loading waiter details...</p>
+              ) : selectedWaiter.transactions.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-[#ead2cd] bg-[#fff9f8] px-4 py-8 text-center text-sm text-gray-500">No tips recorded yet.</p>
               ) : (
                 <div className="space-y-3">

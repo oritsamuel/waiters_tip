@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAuthToken } from '@/lib/auth';
+import { findWaiterByIdentifier, setWaiterActiveState } from '@/lib/db';
 
 import { HULUBEJE_API_URL, HULUBEJE_API_KEY } from '@/lib/config';
-
 
 export async function POST(
   request: Request,
@@ -15,7 +15,12 @@ export async function POST(
     }
 
     const { id } = await params;
-    const response = await fetch(`${HULUBEJE_API_URL}/${id}/terminate`, {
+    const waiterIdentifier = String(id ?? '').trim();
+
+    const existingWaiter = await findWaiterByIdentifier(waiterIdentifier);
+    const externalId = existingWaiter?.id ? String(existingWaiter.id) : waiterIdentifier;
+
+    const response = await fetch(`${HULUBEJE_API_URL}/${encodeURIComponent(externalId)}/terminate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -25,13 +30,19 @@ export async function POST(
     });
 
     const payload = await response.json().catch(() => null);
+    const localUpdated = existingWaiter
+      ? await setWaiterActiveState(existingWaiter.id || existingWaiter.phone || externalId, false)
+      : await setWaiterActiveState(waiterIdentifier, false);
 
-    if (!response.ok) {
+    if (!response.ok && !localUpdated) {
       const message = payload?.message || payload?.error || 'Failed to terminate waiter.';
       return NextResponse.json({ success: false, error: message }, { status: response.status || 500 });
     }
 
-    return NextResponse.json({ success: true, data: payload?.data ?? payload ?? null });
+    return NextResponse.json({
+      success: true,
+      data: payload?.data ?? payload ?? { id: externalId, isActive: false, updatedLocally: localUpdated },
+    });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }

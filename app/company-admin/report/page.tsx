@@ -23,13 +23,8 @@ type Transaction = {
   timestamp: string;
 };
 
-type WaiterRecord = {
-  phone: string;
-  fullName?: string;
-  status?: "active" | "terminated";
-};
-
 type WaiterProfile = {
+  id?: string;
   waiterPhoneNumber: string;
   fullName: string;
   photo: string;
@@ -106,25 +101,54 @@ function ReportDashboardContent() {
           ? payload
           : [];
 
-        const profiles: WaiterProfile[] = savedWaiters.map((waiter: any) => ({
-          waiterPhoneNumber: waiter.waiterPhoneNumber || waiter.phone || waiter.id,
-          fullName: waiter.fullName || waiter.name || `Waiter (${waiter.waiterPhoneNumber || waiter.phone || waiter.id})`,
-          photo: waiter.photo || "/waiter.png",
-          totalTips: Number(waiter.totalTips || 0),
-          averageRating: Number(waiter.averageRating || 0),
-          transactions: Array.isArray(waiter.transactions) ? waiter.transactions : [],
-          status: waiter.status === "terminated" ? "terminated" : "active",
-        }));
+        const profiles: WaiterProfile[] = savedWaiters.map((waiter: Record<string, unknown>) => {
+          const waiterData = waiter as Partial<WaiterProfile> & {
+            waiterPhoneNumber?: string;
+            waiterId?: string;
+            waiter_id?: string;
+            phone?: string;
+            id?: string;
+            fullName?: string;
+            name?: string;
+            photo?: string;
+            totalTips?: number | string;
+            averageRating?: number | string;
+            transactions?: Transaction[];
+            status?: "active" | "terminated";
+            isActive?: boolean;
+          };
+
+          const resolvedStatus: WaiterProfile["status"] =
+            typeof waiterData.isActive === "boolean"
+              ? (waiterData.isActive ? "active" : "terminated")
+              : waiterData.status === "terminated"
+                ? "terminated"
+                : "active";
+
+          const waiterIdentifier = waiterData.id || waiterData.waiterId || waiterData.waiter_id || waiterData.waiterPhoneNumber || waiterData.phone || "";
+
+          return {
+            id: waiterData.id || waiterData.waiterId || waiterData.waiter_id || undefined,
+            waiterPhoneNumber: waiterData.waiterPhoneNumber || waiterData.phone || waiterIdentifier || "",
+            fullName: waiterData.fullName || waiterData.name || `Waiter (${waiterData.waiterPhoneNumber || waiterData.phone || waiterIdentifier || "unknown"})`,
+            photo: waiterData.photo || "/waiter.png",
+            totalTips: Number(waiterData.totalTips || 0),
+            averageRating: Number(waiterData.averageRating || 0),
+            transactions: Array.isArray(waiterData.transactions) ? waiterData.transactions : [],
+            status: resolvedStatus,
+          };
+        });
 
         profiles.sort((a, b) => a.fullName.localeCompare(b.fullName));
         if (isMounted) {
           setActionError("");
           setWaiters(profiles);
         }
-      } catch (err: any) {
-        if (err.name === "AbortError") return;
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        const message = err instanceof Error ? err.message : "Network error. Please try again.";
         if (isMounted) {
-          setActionError(err?.message || "Network error. Please try again.");
+          setActionError(message);
           setWaiters([]);
         }
       } finally {
@@ -147,6 +171,7 @@ function ReportDashboardContent() {
     const searchableText = [
       waiter.fullName,
       waiter.waiterPhoneNumber,
+      waiter.id || "",
       ...waiter.transactions.flatMap((transaction) => [transaction.comment, String(transaction.tipAmount)]),
     ].join(" ").toLowerCase();
     return matchesFilter && searchableText.includes(search.trim().toLowerCase());
@@ -211,19 +236,21 @@ function ReportDashboardContent() {
     setActionError("");
 
     try {
+      const waiterIdentifier = statusTarget.id || statusTarget.waiterPhoneNumber;
       const endpoint = statusTarget.status === "active"
-        ? `/api/waiter-tips/${encodeURIComponent(statusTarget.waiterPhoneNumber)}/terminate`
-        : `/api/waiter-tips/${encodeURIComponent(statusTarget.waiterPhoneNumber)}/activate`;
+        ? `/api/waiter-tips/${encodeURIComponent(waiterIdentifier)}/terminate`
+        : `/api/waiter-tips/${encodeURIComponent(waiterIdentifier)}/activate`;
 
       const response = await fetch(endpoint, { method: "POST" });
       if (!response.ok) throw new Error("Could not update waiter status");
 
       const nextStatus: WaiterProfile["status"] = statusTarget.status === "active" ? "terminated" : "active";
-      setWaiters((current) => current.map((waiter) =>
-        waiter.waiterPhoneNumber === statusTarget.waiterPhoneNumber
-          ? { ...waiter, status: nextStatus }
-          : waiter,
-      ));
+      setWaiters((current) => current.map((waiter) => {
+        const sameWaiter = (waiter.id && statusTarget.id && waiter.id === statusTarget.id)
+          || waiter.waiterPhoneNumber === statusTarget.waiterPhoneNumber;
+
+        return sameWaiter ? { ...waiter, status: nextStatus } : waiter;
+      }));
       setStatusTarget(null);
     } catch {
       setActionError("Could not update waiter status. Please try again.");
@@ -316,7 +343,7 @@ function ReportDashboardContent() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {visibleWaiters.map((waiter) => (
-                    <tr key={waiter.waiterPhoneNumber} className="hover:bg-[#fcf8f6]">
+                    <tr key={waiter.id || waiter.waiterPhoneNumber} className="hover:bg-[#fcf8f6]">
                       <td className="px-6 py-2.5">
                         <div className="flex items-center gap-3">
                           <img src={waiter.photo} className="h-9 w-9 rounded-full border border-gray-200 object-cover" alt="" />
@@ -345,26 +372,7 @@ function ReportDashboardContent() {
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
-                            onClick={async () => {
-                              try {
-                                const response = await fetch(`/api/waiter-tips/${encodeURIComponent(waiter.waiterPhoneNumber)}`);
-                                if (!response.ok) throw new Error("Failed to fetch waiter details");
-                                const payload = await response.json();
-                                const data = payload?.data ?? null;
-                                if (!data) return;
-                                setSelectedWaiter({
-                                  waiterPhoneNumber: data.waiterPhoneNumber || data.phone || waiter.waiterPhoneNumber,
-                                  fullName: data.fullName || waiter.fullName,
-                                  photo: data.photo || waiter.photo,
-                                  totalTips: Number(data.totalTips || 0),
-                                  averageRating: Number(data.averageRating || 0),
-                                  transactions: Array.isArray(data.transactions) ? data.transactions : [],
-                                  status: data.status === "terminated" ? "terminated" : "active",
-                                });
-                              } catch (error) {
-                                console.error(error);
-                              }
-                            }}
+                            onClick={() => setSelectedWaiter(waiter)}
                             className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#d4c6bd] bg-[#f5eee9] px-3 text-xs font-medium text-[#443a34] hover:bg-[#eee3dc]"
                           >
                             <InformationCircleIcon className="h-4 w-4" aria-hidden="true" />
@@ -397,63 +405,85 @@ function ReportDashboardContent() {
       </div>
 
       {selectedWaiter && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-0 sm:p-5" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedWaiter(null); }}>
-          <section role="dialog" aria-modal="true" aria-labelledby="waiter-details-title" className="max-h-screen w-full overflow-y-auto bg-white shadow-2xl sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl">
-            <header className="flex items-start justify-between border-b border-gray-100 px-5 py-5 sm:px-7">
-              <div className="flex items-center gap-3">
-                <img src={selectedWaiter.photo} className="h-12 w-12 rounded-full border border-gray-200 object-cover" alt="" />
-                <div>
-                  <h2 id="waiter-details-title" className="font-serif text-xl font-bold text-gray-900">{selectedWaiter.fullName}</h2>
-                  <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-500">
-                    {selectedWaiter.waiterPhoneNumber}
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs ${selectedWaiter.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-600"}`}>
-                      {selectedWaiter.status === "active" ? "Active" : "Terminated"}
-                    </span>
-                  </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedWaiter(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="waiter-details-title" className="w-full max-w-[640px] overflow-hidden rounded-[28px] border border-[#f3d8d1] bg-[#fffdfd] shadow-[0_30px_80px_rgba(80,32,33,0.18)]">
+            <div className="border-b border-[#f7e8e4] bg-[#fff4f1] px-5 py-5 sm:px-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-white shadow-sm">
+                    <img src={selectedWaiter.photo} className="h-full w-full object-cover" alt={selectedWaiter.fullName} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9a6a67]">Waiter details</p>
+                    <h2 id="waiter-details-title" className="mt-1 font-serif text-2xl font-bold text-[#221c1a]">{selectedWaiter.fullName}</h2>
+                    <p className="mt-1 text-sm text-[#725d5a]">{selectedWaiter.waiterPhoneNumber}</p>
+                  </div>
                 </div>
-              </div>
-              <button type="button" onClick={() => setSelectedWaiter(null)} aria-label="Close details" className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </header>
 
-            <div className="grid grid-cols-3 border-b border-gray-100 bg-[#fffafa] px-5 py-5 sm:px-7">
-              <div>
-                <p className="text-[11px] font-semibold uppercase text-gray-500">Total tips</p>
-                <p className="mt-1 text-xl font-bold text-gray-900">{formatTips(selectedWaiter.totalTips)}</p>
-              </div>
-              <div className="border-x border-gray-200 px-3 sm:px-6">
-                <p className="text-[11px] font-semibold uppercase text-gray-500">Avg rating</p>
-                <div className="mt-1 flex items-center gap-1">
-                  <span className="text-xl font-bold text-gray-900">{selectedWaiter.averageRating.toFixed(1)}</span>
-                  <span className="hidden sm:flex">
-                    {[0, 1, 2, 3, 4].map((star) => <StarIcon key={star} className={`h-4 w-4 ${star < Math.round(selectedWaiter.averageRating) ? "text-rose-300" : "text-gray-200"}`} />)}
-                  </span>
-                </div>
-              </div>
-              <div className="pl-3 sm:pl-6">
-                <p className="text-[11px] font-semibold uppercase text-gray-500">Tip count</p>
-                <p className="mt-1 text-xl font-bold text-gray-900">{selectedWaiter.transactions.length}</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedWaiter(null)}
+                  aria-label="Close details"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e7d0c9] bg-white text-[#7a5a56] transition hover:bg-[#fdf0ee]"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
               </div>
             </div>
 
-            <div className="px-5 py-5 sm:px-7">
-              <h3 className="mb-3 text-xs font-semibold uppercase text-gray-600">Tip history</h3>
+            <div className="grid grid-cols-3 gap-3 bg-white p-5 sm:px-6">
+              <div className="rounded-2xl border border-[#f1ddd9] bg-[#fff9f7] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8b6a63]">Total tips</p>
+                <p className="mt-2 text-xl font-bold text-[#2b1d1c]">{formatTips(selectedWaiter.totalTips)}</p>
+              </div>
+              <div className="rounded-2xl border border-[#f1ddd9] bg-[#fff9f7] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8b6a63]">Avg rating</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xl font-bold text-[#2b1d1c]">{selectedWaiter.averageRating.toFixed(1)}</span>
+                  <div className="flex">
+                    {[0, 1, 2, 3, 4].map((star) => (
+                      <StarIcon key={star} className={`h-4 w-4 ${star < Math.round(selectedWaiter.averageRating) ? "text-[#d97070]" : "text-[#ece0df]"}`} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[#f1ddd9] bg-[#fff9f7] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8b6a63]">Tips count</p>
+                <p className="mt-2 text-xl font-bold text-[#2b1d1c]">{selectedWaiter.transactions.length}</p>
+              </div>
+            </div>
+
+            <div className="px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8b6a63]">Tip history</h3>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${selectedWaiter.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-700"}`}>
+                  {selectedWaiter.status === "active" ? "Active" : "Terminated"}
+                </span>
+              </div>
+
               {selectedWaiter.transactions.length === 0 ? (
-                <p className="rounded-xl bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">No tips recorded yet.</p>
+                <p className="rounded-2xl border border-dashed border-[#ead2cd] bg-[#fff9f8] px-4 py-8 text-center text-sm text-gray-500">No tips recorded yet.</p>
               ) : (
                 <div className="space-y-3">
                   {selectedWaiter.transactions.map((transaction) => (
-                    <article key={transaction.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">
+                    <article key={transaction.id} className="rounded-2xl border border-[#f5e4e0] bg-[#fffdfd] p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-3">
-                        <p className="font-semibold text-gray-900">{formatTips(transaction.tipAmount)}</p>
-                        <span className="flex shrink-0" aria-label={`${transaction.rating} out of 5 stars`}>
-                          {[0, 1, 2, 3, 4].map((star) => <StarIcon key={star} className={`h-4 w-4 ${star < transaction.rating ? "text-rose-300" : "text-gray-200"}`} />)}
-                        </span>
+                        <div>
+                          <p className="text-xs text-[#9a7b73]">{formatTimestamp(transaction.timestamp)}</p>
+                          <p className="mt-1 text-lg font-bold text-[#2a1f1d]">{formatTips(transaction.tipAmount)}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1" aria-label={`${transaction.rating} out of 5 stars`}>
+                          {[0, 1, 2, 3, 4].map((star) => (
+                            <StarIcon key={star} className={`h-4 w-4 ${star < transaction.rating ? "text-[#d97070]" : "text-[#f1dfdd]"}`} />
+                          ))}
+                        </div>
                       </div>
-                      <p className="mt-1 text-xs text-gray-400">{formatTimestamp(transaction.timestamp)}</p>
-                      {transaction.comment && <p className="mt-3 text-sm italic text-gray-600">&ldquo;{transaction.comment}&rdquo;</p>}
-                      {transaction.payerPhone && <p className="mt-2 text-xs text-gray-400">{transaction.payerPhone}</p>}
+
+                      {transaction.comment && (
+                        <p className="mt-3 rounded-xl bg-[#fff5f4] px-3 py-2 text-sm italic text-[#5e4745]">&ldquo;{transaction.comment}&rdquo;</p>
+                      )}
+
+                      {transaction.payerPhone && <p className="mt-2 text-xs text-[#8a6b67]">Payer: {transaction.payerPhone}</p>}
                     </article>
                   ))}
                 </div>
@@ -470,11 +500,11 @@ function ReportDashboardContent() {
             <form onSubmit={addWaiter} className="mt-6 space-y-4">
               <div>
                 <label htmlFor="waiter-name" className="mb-2 block text-sm font-medium text-gray-800">Waiter Name</label>
-                <input id="waiter-name" value={newName} onChange={(event) => setNewName(event.target.value)} required placeholder="Full name" className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-[#861d40] focus:ring-2 focus:ring-[#861d40]/15" />
+                <input id="waiter-name" value={newName} onChange={(event) => setNewName(event.target.value)} required placeholder="Full name" className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-[#861d40] text-gray-800 focus:ring-2 focus:ring-[#861d40]/15" />
               </div>
               <div>
                 <label htmlFor="waiter-phone" className="mb-2 block text-sm font-medium text-gray-800">Phone Number</label>
-                <input id="waiter-phone" type="tel" value={newPhone} onChange={(event) => setNewPhone(event.target.value)} required placeholder="+251 9XX XXX XXX" className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-[#861d40] focus:ring-2 focus:ring-[#861d40]/15" />
+                <input id="waiter-phone" type="tel" value={newPhone} onChange={(event) => setNewPhone(event.target.value)} required placeholder="+251 9XX XXX XXX" className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none text-gray-800 focus:border-[#861d40] focus:ring-2 focus:ring-[#861d40]/15" />
               </div>
               {actionError && <p role="alert" className="text-sm text-red-700">{actionError}</p>}
               <div className="flex gap-3 pt-1">

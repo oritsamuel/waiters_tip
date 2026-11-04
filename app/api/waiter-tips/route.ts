@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthToken } from '@/lib/auth';
+import { getCompanyData } from '@/lib/db';
 import {
   HULUBEJE_API_URL,
   HULUBEJE_API_KEY,
@@ -69,7 +70,40 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: message }, { status: response.status || 500 });
     }
 
-    return NextResponse.json({ success: true, data: payload?.data ?? payload ?? [] });
+    const data = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
+    const query = new URL(request.url).searchParams;
+    const companyId = query.get('companyId') || DEFAULT_COMPANY_ID;
+    const branchCode = query.get('branchCode') || query.get('branch') || DEFAULT_BRANCH_CODE;
+
+    if (companyId && branchCode) {
+      const companyData = await getCompanyData(companyId, branchCode);
+      const waiterStateMap = new Map<string, boolean>();
+
+      (companyData.waiters || []).forEach((waiter) => {
+        const state = typeof waiter.isActive === 'boolean' ? waiter.isActive : waiter.status !== 'terminated';
+        if (waiter.phone) waiterStateMap.set(String(waiter.phone), state);
+        if (waiter.id) waiterStateMap.set(String(waiter.id), state);
+      });
+
+      data.forEach((waiter: Record<string, unknown>) => {
+        const candidateKeys = [
+          waiter.waiterPhoneNumber,
+          waiter.phone,
+          waiter.id,
+          waiter.waiterId,
+          waiter.waiter_id,
+        ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+        const activeState = candidateKeys.find((key) => waiterStateMap.has(String(key)));
+        if (!activeState) return;
+
+        const isActive = waiterStateMap.get(String(activeState)) ?? true;
+        waiter.isActive = isActive;
+        waiter.status = isActive ? 'active' : 'terminated';
+      });
+    }
+
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }

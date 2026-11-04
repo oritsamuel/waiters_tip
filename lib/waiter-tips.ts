@@ -23,7 +23,11 @@ export type WaiterProfile = {
   }>;
 };
 
-export function normalizeWaiterStatus(value?: string): WaiterStatus {
+export function normalizeWaiterStatus(value?: string, isActive?: boolean): WaiterStatus {
+  if (typeof isActive === 'boolean') {
+    return isActive ? 'active' : 'terminated';
+  }
+
   return value === 'terminated' ? 'terminated' : 'active';
 }
 
@@ -66,6 +70,8 @@ export async function getWaiterProfilesForCompany(
       ? transactions.reduce((sum, transaction) => sum + Number(transaction.rating || 0), 0) / transactions.length
       : 0;
 
+    const isActive = typeof waiter.isActive === 'boolean' ? waiter.isActive : !waiter.status || waiter.status !== 'terminated';
+
     return {
       id: phone,
       waiterPhoneNumber: phone,
@@ -74,7 +80,7 @@ export async function getWaiterProfilesForCompany(
       photo: '/waiter.png',
       totalTips,
       averageRating: Number(averageRating.toFixed(1)),
-      status: normalizeWaiterStatus(waiter.status),
+      status: normalizeWaiterStatus(waiter.status, isActive),
       transactions,
     };
   });

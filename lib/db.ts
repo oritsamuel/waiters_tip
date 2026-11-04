@@ -14,9 +14,11 @@ export type Transaction = {
 };
 
 export type Waiter = {
+  id?: string;
   phone: string;
   fullName?: string;
   status?: 'active' | 'terminated';
+  isActive?: boolean;
 };
 
 export type CompanyData = {
@@ -77,4 +79,61 @@ export async function addTransaction(companyId: string, branchCode: string, tran
   db[key].transactions.push(newTransaction);
   await saveDb(db);
   return newTransaction;
+}
+
+export async function findWaiterByIdentifier(identifier: string): Promise<Waiter | null> {
+  const normalized = String(identifier ?? '').trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const db = await getDb();
+
+  for (const companyData of Object.values(db)) {
+    if (!Array.isArray(companyData?.waiters)) continue;
+
+    const waiter = companyData.waiters.find((item) => {
+      const itemId = item.id ? String(item.id) : '';
+      const itemPhone = item.phone ? String(item.phone) : '';
+      return itemId === normalized || itemPhone === normalized;
+    });
+
+    if (waiter) return waiter;
+  }
+
+  return null;
+}
+
+export async function findWaiterByPhone(phone: string): Promise<Waiter | null> {
+  return findWaiterByIdentifier(phone);
+}
+
+export async function setWaiterActiveState(identifier: string, isActive: boolean): Promise<boolean> {
+  const normalized = String(identifier ?? '').trim();
+  if (!normalized) {
+    return false;
+  }
+
+  const db = await getDb();
+  let updated = false;
+
+  Object.values(db).forEach((companyData) => {
+    if (!Array.isArray(companyData?.waiters)) return;
+
+    companyData.waiters.forEach((waiter) => {
+      const waiterId = waiter.id ? String(waiter.id) : '';
+      const waiterPhone = waiter.phone ? String(waiter.phone) : '';
+      if (waiterId !== normalized && waiterPhone !== normalized) return;
+
+      waiter.isActive = isActive;
+      waiter.status = isActive ? 'active' : 'terminated';
+      updated = true;
+    });
+  });
+
+  if (updated) {
+    await saveDb(db);
+  }
+
+  return updated;
 }

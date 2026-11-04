@@ -52,6 +52,12 @@ function isValidId(val: string | null): boolean {
     return Number.isSafeInteger(num) && num > 0;
 }
 
+const DEFAULT_COMMENT_OPTIONS = [
+    "Thanks!",
+    "Great service!",
+    "Much appreciated!",
+] as const;
+
 function PageContent() {
     const [tip, setTip] = useState(5);
     const [rating, setRating] = useState(0);
@@ -272,7 +278,7 @@ function PageContent() {
 
     const displayName = companyInfo?.name || `Company ${companyId}`;
     const displayBranch = branchInfo?.name || `Branch ${branchId}`;
-    const displayLogo = companyInfo?.logo || "/waiter.png";
+    const displayLogo =  "/HB_logo.png";
 
     // 4. Waiter selection state (when no waiter is chosen yet)
     if (!selectedWaiter) {
@@ -450,18 +456,18 @@ function PageContent() {
                         rows={1}
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
-                        className="border text-black w-full rounded p-2 text-sm"
+                        className="border-2 border-black text-black w-full rounded-xl p-3 text-sm resize-none min-h-[64px]"
                         placeholder="Add a remark..."
                     />
 
                     {/* Default comment buttons */}
-                    <div className="flex gap-2 flex-wrap">
-                        {["Thanks!", "Great service!", "Much appreciated!"].map((text) => (
+                    <div className="flex justify-center gap-3">
+                        {DEFAULT_COMMENT_OPTIONS.map((text) => (
                             <button
                                 key={text}
                                 type="button"
                                 onClick={() => setComment(text)}
-                                className="text-xs text-yellow-700 bg-white hover:bg-gray-100 px-3 py-1 rounded-full border border-yellow-400"
+                                className="min-w-[92px] rounded-full border border-red-400 bg-white px-3 py-2 text-sm font-medium text-red-500 transition hover:bg-red-50"
                             >
                                 {text}
                             </button>

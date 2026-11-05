@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { AUTH_COOKIE_NAME, isLikelyJwt } from '@/lib/auth';
+import { AUTH_COOKIE_NAME, hasCompanyAdminPrivileges, isLikelyJwt } from '@/lib/auth';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -12,7 +12,7 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/company-admin')) {
     const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
-    if (!isLikelyJwt(token)) {
+    if (!isLikelyJwt(token) || !hasCompanyAdminPrivileges(token)) {
       const url = request.nextUrl.clone();
       url.pathname = '/company-admin/login';
       return NextResponse.redirect(url);
@@ -32,7 +32,7 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/waiter-tips') || pathname.startsWith('/api/transaction')) {
     const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
-    if (!isLikelyJwt(token)) {
+    if (!isLikelyJwt(token) || !hasCompanyAdminPrivileges(token)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
   }

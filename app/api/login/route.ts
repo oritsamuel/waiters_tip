@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { setAuthCookie } from '@/lib/auth';
+import { hasCompanyAdminPrivileges, setAuthCookie } from '@/lib/auth';
 import { HULUBEJE_AUTH_URL, HULUBEJE_API_KEY, HULUBEJE_AUTH_TOKEN } from '@/lib/config';
 
 export async function POST(request: Request) {
@@ -54,6 +54,13 @@ export async function POST(request: Request) {
     const token = lastPayload?.data?.token || lastPayload?.token;
     if (!token) {
       return NextResponse.json({ error: 'Authentication succeeded but no token was returned.' }, { status: 500 });
+    }
+
+    if (!hasCompanyAdminPrivileges(token)) {
+      return NextResponse.json(
+        { error: 'This account does not have company admin privileges or has been terminated.' },
+        { status: 403 }
+      );
     }
 
     const response = NextResponse.json({ success: true });

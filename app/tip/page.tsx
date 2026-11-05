@@ -44,6 +44,29 @@ type ApiWaiterItem = {
     companyLogo?: string;
 };
 
+type MerchantRecord = {
+    id?: string | number;
+    companyId?: string | number;
+    merchantId?: string | number;
+    company_id?: string | number;
+    merchant_id?: string | number;
+
+    name?: string;
+    companyName?: string;
+    merchantName?: string;
+
+    company?: {
+        id?: string | number;
+        name?: string;
+        companyName?: string;
+    };
+
+    merchant?: {
+        id?: string | number;
+        name?: string;
+    };
+};
+
 function isValidId(val: string | null): boolean {
     if (!val) return false;
     const trimmed = val.trim();
@@ -196,25 +219,26 @@ function PageContent() {
                     const merchantRes = await fetch(`/api/merchants?companyId=${encodeURIComponent(companyId)}`, { signal: controller.signal });
                     if (merchantRes.ok) {
                         const merchantPayload = await merchantRes.json().catch(() => null);
-                        const merchantList = Array.isArray(merchantPayload?.data)
-                            ? (merchantPayload.data as Record<string, unknown>[])
+                        const merchantList: MerchantRecord[] = Array.isArray(merchantPayload?.data)
+                            ? merchantPayload.data
                             : Array.isArray(merchantPayload)
-                            ? (merchantPayload as Record<string, unknown>[])
+                            ? merchantPayload
                             : [];
 
-                        const matchedMerchant = merchantList.find((merchant: Record<string, unknown>) => {
-                            const company = merchant.company as Record<string, unknown> | undefined;
-                            const merchantObj = merchant.merchant as Record<string, unknown> | undefined;
+                        const matchedMerchant = merchantList.find((merchant) => {
                             const values = [
                                 merchant.id,
                                 merchant.companyId,
                                 merchant.merchantId,
-                                company?.id,
-                                merchantObj?.id,
+                                merchant.company?.id,
+                                merchant.merchant?.id,
                                 merchant.company_id,
                                 merchant.merchant_id,
                             ];
-                            return values.some((value) => value != null && String(value) === String(companyId));
+
+                            return values.some(
+                                (value) => value != null && String(value) === String(companyId)
+                            );
                         });
 
                         companyNameFromMerchant =

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import PoweredBy from "@/components/PoweredBy";
 import { defaultRestaurantSlug, restaurants } from "@/lib/restaurants";
 
 type Waiter = {
@@ -100,6 +101,7 @@ function HomeContent() {
         <div className="bg-white p-6 rounded-xl shadow text-center">
           <h2 className="text-xl font-bold text-red-600">No active restaurant link</h2>
           <p className="text-gray-600 mt-2">This page is empty until a valid restaurant link is provided.</p>
+          <PoweredBy />
         </div>
       </main>
     );
@@ -173,6 +175,7 @@ function HomeContent() {
             </div>
           )}
         </div>
+        <PoweredBy />
       </div>
     </main>
   );
@@ -180,7 +183,7 @@ function HomeContent() {
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<div className="flex justify-center items-center min-h-screen bg-gray-100">Loading...</div>}>
+    <Suspense fallback={<div className="flex flex-col justify-center items-center min-h-screen bg-gray-100"><div>Loading...</div><PoweredBy /></div>}>
       <HomeContent />
     </Suspense>
   );

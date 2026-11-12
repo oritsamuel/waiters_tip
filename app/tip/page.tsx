@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import RatingStars from "@/components/RatingStars";
 import TipButtons from "@/components/TipButtons";
 import TipModal from "@/components/TipModal";
+import PoweredBy from "@/components/PoweredBy";
 
 type Waiter = {
     photo?: string;
@@ -326,6 +327,7 @@ function PageContent() {
                 <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center border border-red-300">
                     <h2 className="text-xl font-bold text-black">Invalid link</h2>
                     <p className="mt-2 text-sm text-gray-600">This page requires a valid companyId and branchId.</p>
+                    <PoweredBy />
                 </div>
             </main>
         );
@@ -334,11 +336,12 @@ function PageContent() {
     // 2. Loading state
     if (loading) {
         return (
-            <main className="flex justify-center items-center min-h-screen bg-gray-100 px-4 py-10">
+            <main className="flex flex-col justify-center items-center min-h-screen bg-gray-100 px-4 py-10">
                 <div className="flex flex-col items-center py-6">
                     <div className="w-8 h-8 border-4 border-gray-300 border-t-red-500 rounded-full animate-spin mb-4"></div>
                     <p className="text-gray-600 text-sm">Loading branch details...</p>
                 </div>
+                <PoweredBy />
             </main>
         );
     }
@@ -350,6 +353,7 @@ function PageContent() {
                 <div className="bg-white w-[350px] rounded-xl shadow-lg p-6 text-center border border-red-300">
                     <h2 className="text-xl font-bold text-black">Unavailable</h2>
                     <p className="mt-2 text-sm text-gray-600">{error}</p>
+                    <PoweredBy />
                 </div>
             </main>
         );
@@ -397,12 +401,12 @@ function PageContent() {
                                     />
                                     <div className="flex-1">
                                         <p className="font-semibold text-black">{option.fullName || "Waiter"}</p>
-                                        <p className="text-xs text-gray-500">{option.phoneNumber || "No phone"}</p>
                                     </div>
                                 </button>
                             ))}
                         </div>
                     )}
+                    <PoweredBy />
                 </div>
             </main>
         );
@@ -615,6 +619,7 @@ function PageContent() {
                     Send Tip
                 </button>
 
+                <PoweredBy />
             </div>
 
             <TipModal

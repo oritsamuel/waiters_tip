@@ -43,10 +43,9 @@ export default function CompanyAdminLogin() {
   return (
     <main className="grid min-h-screen bg-white md:grid-cols-[40.7%_1fr]">
       <aside className="flex min-h-[230px] flex-col items-center justify-center bg-[#861d40] px-8 py-10 text-white md:min-h-screen">
-        <div className="flex h-20 w-20 items-center justify-center rounded-[22px] border border-white/20 bg-white/10 shadow-sm">
-          <UserGroupIcon className="h-10 w-10" aria-hidden="true" />
-        </div>
-        <h1 className="mt-7 font-serif text-4xl font-bold tracking-wide">Hulubeje</h1>
+        
+            <img src="/Hlogo.png" className="mx-auto mb-8 grid h-20 w-50 place-items-center lg:mx-0"/>
+
         <p className="mt-2 text-sm font-semibold uppercase tracking-[0.16em] text-white/65">Admin Portal</p>
         <ul className="mt-10 hidden space-y-4 text-sm text-white/90 md:block">
           {["Waiter tip management", "QR-based payments", "Branch-level control"].map((feature) => (

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import confetti from "canvas-confetti";
+import PoweredBy from "@/components/PoweredBy";
 
 export default function SuccessPage() {
 
@@ -27,6 +28,7 @@ export default function SuccessPage() {
             <p className="text-black mt-6 max-w-sm">
                 We&apos;ve successfully confirmed your payment. You will receive sms confirmation shortly.
             </p>
+            <PoweredBy />
 
         </main>
     );

@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import PoweredBy from "@/components/PoweredBy";
 import { defaultRestaurantSlug, restaurants } from "@/lib/restaurants";
+import { addAverageRatings } from "@/lib/waiter-ratings";
 
 type Waiter = {
   photo?: string;
@@ -22,6 +23,7 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const routeParams = useParams<{ restaurant?: string }>();
   const [waiters, setWaiters] = useState<Waiter[]>([]);
+  const [companyLogoFromApi, setCompanyLogoFromApi] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -63,7 +65,7 @@ function HomeContent() {
               photo: waiter.photo || "/waiter.png",
             }))
             .sort((a: any, b: any) => (a.fullName || "").localeCompare(b.fullName || ""));
-          setWaiters(validWaiters);
+          setWaiters(await addAverageRatings(validWaiters, companyId));
           return;
         }
 
@@ -81,7 +83,7 @@ function HomeContent() {
           .sort((a: any, b: any) =>
             (a.fullName || "").localeCompare(b.fullName || "")
           );
-        setWaiters(validWaiters);
+        setWaiters(await addAverageRatings(validWaiters, companyId));
       } catch (err) {
         console.error(err);
       } finally {
@@ -91,6 +93,23 @@ function HomeContent() {
 
     fetchWaiters();
   }, [companyId, branchCode]);
+
+  useEffect(() => {
+    if (!companyId) return;
+
+    const controller = new AbortController();
+    fetch(`/api/merchants?companyId=${encodeURIComponent(companyId)}`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        const company = Array.isArray(payload?.data) ? payload.data[0] : null;
+        if (typeof company?.companyLogo === "string") {
+          setCompanyLogoFromApi(company.companyLogo);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => controller.abort();
+  }, [companyId]);
 
   const hasDirectContext = !!companyId && !!branchCode;
   const showRestaurantHeader = !!restaurant && !!companyId && !!branchCode;
@@ -107,7 +126,7 @@ function HomeContent() {
     );
   }
 
-  const companyLogo = waiters.length > 0 && waiters[0].companyLogo ? waiters[0].companyLogo : "/waiter.png";
+  const companyLogo = companyLogoFromApi || (waiters.length > 0 && waiters[0].companyLogo) || "/waiter.png";
 
   return (
     <main className="flex justify-center items-start min-h-screen bg-gray-100 py-10">

@@ -6,6 +6,7 @@ import RatingStars from "@/components/RatingStars";
 import TipButtons from "@/components/TipButtons";
 import TipModal from "@/components/TipModal";
 import PoweredBy from "@/components/PoweredBy";
+import { addAverageRatings } from "@/lib/waiter-ratings";
 
 type Waiter = {
     photo?: string;
@@ -51,6 +52,7 @@ type MerchantRecord = {
     merchantId?: string | number;
     company_id?: string | number;
     merchant_id?: string | number;
+    companyLogo?: string;
 
     name?: string;
     companyName?: string;
@@ -216,6 +218,7 @@ function PageContent() {
 
                 // Fetch the merchant record for this company to display the real company name
                 let companyNameFromMerchant: string | undefined;
+                let companyLogoFromMerchant: string | undefined;
                 try {
                     const merchantRes = await fetch(`/api/merchants?companyId=${encodeURIComponent(companyId)}`, { signal: controller.signal });
                     if (merchantRes.ok) {
@@ -249,6 +252,7 @@ function PageContent() {
                             matchedMerchant?.company?.name ||
                             matchedMerchant?.company?.companyName ||
                             matchedMerchant?.merchant?.name;
+                        companyLogoFromMerchant = matchedMerchant?.companyLogo;
                     }
                 } catch {
                     companyNameFromMerchant = undefined;
@@ -259,6 +263,7 @@ function PageContent() {
                 const compLogo =
                     first?.companyLogo ||
                     first?.company?.logo ||
+                    companyLogoFromMerchant ||
                     "/waiter.png";
                 const compName = getDisplayCompanyName(
                     companyNameFromMerchant || first?.companyName || first?.company?.name,
@@ -284,11 +289,12 @@ function PageContent() {
                             companyLogo: compLogo,
                         }));
 
-                    setWaiterOptions(mappedWaiters);
+                    const waitersWithRatings = await addAverageRatings(mappedWaiters, companyId, controller.signal);
+                    setWaiterOptions(waitersWithRatings);
 
                     // If a waiter phone number was in URL parameters, find and select them
                     if (queryWaiterPhone) {
-                        const matched = mappedWaiters.find(
+                        const matched = waitersWithRatings.find(
                             (w) => w.phoneNumber === queryWaiterPhone
                         );
                         if (matched) {
@@ -361,7 +367,7 @@ function PageContent() {
 
     const displayName = companyInfo?.name || getDisplayCompanyName(undefined, undefined, companyId);
     const displayBranch = branchInfo?.name || `Branch ${branchId}`;
-    const displayLogo =  "/HB_logo.png";
+    const displayLogo = companyInfo?.logo || "/HB_logo.png";
 
     // 4. Waiter selection state (when no waiter is chosen yet)
     if (!selectedWaiter) {
